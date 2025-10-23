@@ -4,13 +4,25 @@ import createLayout from "ngraph.forcelayout"
 import createGraph from "ngraph.graph"
 import { useEffect, useRef, useState } from "react"
 import type React from "react"
+import { Button } from "@/ui/button"
+import { generateRandomGraph } from "@/lib/generateGraph"
 
 type NodeId = string;
 
 interface Edge {
     u: NodeId;
     v: NodeId;
-    w?: number;
+    data: {
+        w?: number;
+    }
+}
+
+interface Node {
+    u: NodeId;
+    data: {
+        vis: boolean;
+        dist: number;
+    }
 }
 
 const NODE_RADIUS = 12;
@@ -18,6 +30,7 @@ const MAX_SCALE = 3;
 const MIN_SCALE = 0.8;
 const DRAG_DEL_X = 50;
 const DRAG_DEL_Y = 50;
+const INF = Infinity;
 
 const clamp = (val: number, lo: number, hi: number) => {
     return Math.min(Math.max(val, lo), hi);
@@ -36,12 +49,15 @@ export default function SimulationPage() {
         dimensions: 2,
         gravity: -12,
         theta: 0.8,
-        springLength: 80,
+        springLength: 150,
         springCoefficient: 0.8,
         dragCoefficient: 0.9,
     });
 
-    const [graphEdges, setGraphEdges] = useState<Edge[]>([{u:"1", v:"2"}]);
+    // const [graphEdges, setGraphEdges] = useState<Edge[]>([{u:"1", v:"2", data: {w: 1}}]);
+    const [graphEdges, setGraphEdges] = useState<Edge[]>(generateRandomGraph(5, 10));
+    // const adjList: Edge[];
+    const [playing, setPlaying] = useState<boolean>(false);
 
     const initGraph = () => {
         graphRef.current = createGraph();
@@ -55,7 +71,11 @@ export default function SimulationPage() {
         const canvas = canvasRef.current;
 
         graphEdges.forEach((edge) => {
-            graph.addLink(edge.u, edge.v);
+            graph.addLink(edge.u, edge.v, edge.data);
+        })
+
+        graph.forEachNode((node) => {
+            node.data = {nodeDist: INF};
         })
 
         return () => {
@@ -129,10 +149,18 @@ export default function SimulationPage() {
             const {fromId, toId} = edge;
             const p_from = layout.getNodePosition(fromId);
             const p_to = layout.getNodePosition(toId);
+            //draw linear line edge
             ctx.beginPath();
             ctx.moveTo(p_from.x, p_from.y);
             ctx.lineTo(p_to.x, p_to.y);
             ctx.stroke();
+
+            //edge weight label
+            ctx.font = "16px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = "black";
+            ctx.fillText(edge.data.w, (p_from.x+p_to.x)/2, (p_from.y+p_to.y)/2);
         })
 
         graph.forEachNode((node) => {
@@ -146,23 +174,29 @@ export default function SimulationPage() {
             ctx.fillStyle = "white";
             ctx.fill();
             ctx.stroke();
-            //draw text id
+            //label text id
             ctx.font = "16px Arial";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillStyle = "black";
             ctx.fillText(nodeId, node_x, node_y);
+            //label distance from start node
+            ctx.fillText(node.data.nodeDist, node_x, node_y-NODE_RADIUS-10);
         })
     }
     useEffect(() => {
         initGraph();
         draw();
     }, []);
+    
     useEffect(() => {
         draw();
     }, [camera]);
+    const startSim = () => {
+
+    }
     return (
-        <>
+        <div>
             <canvas ref={canvasRef} 
             style={{touchAction:'none'}} 
             onContextMenu={(e) => e.preventDefault()}
@@ -171,6 +205,9 @@ export default function SimulationPage() {
             onPointerMove={onPointerMove} 
             onPointerUp={onPointerUp} 
             className="w-full h-full shadow"></canvas>
-        </>
+            <div className="fixed bottom-5 flex justify-center items-center inset-x-0">
+                <Button variant={"primary"} size={"primary"} onClick={(e) => setPlaying(!playing)}>{playing?"Stop":"Play"}</Button>
+            </div>
+        </div>
     )
 } 

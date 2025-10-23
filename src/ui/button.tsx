@@ -8,10 +8,11 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-slate-900 text-white",
-        secondary: "",
+        primary: "bg-black text-white",
       },
       size: {
         default: "h-10 px-4 py-2 rounded-md",
+        primary: "w-36 h-10 px-4 py-2 rounded-md text-xl",
         sm: "h-9 rounded-md px-3",
         lg: "h-11 rounded-md px-8",
       },

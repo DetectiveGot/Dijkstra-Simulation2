@@ -4,15 +4,15 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
+    <div className="h-full grid grid-rows-[1fr_4rem] px-8 sm:px-20 font-sans">
+      <main className="flex flex-col gap-4 justify-center items-center">
         <h1 className='text-3xl'>Dijkstra Simulation</h1>
         <div className="w-full flex flex-col justify-center items-center space-y-1">
-          <Link href='/simulation'><Button>Start</Button></Link>
-          <Button>Guide</Button>
+          <Link href='/simulation'><Button variant={"primary"} size={"primary"}>Start</Button></Link>
+          <Button variant={"primary"} size={"primary"}>Guide</Button>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
+      <footer className="flex gap-[24px] flex-wrap items-center justify-center">
         <a
           className="flex items-center gap-2 hover:underline hover:underline-offset-4"
           href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
