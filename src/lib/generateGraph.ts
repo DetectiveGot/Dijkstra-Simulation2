@@ -6,7 +6,7 @@ interface Edge {
     u: NodeId;
     v: NodeId;
     data: {
-        w?: number;
+        w: number;
     }
 }
 
@@ -33,7 +33,7 @@ const make_edge = (u: number, v: number, w: number) => {
     return res;
 }
 
-export const generateRandomGraph = (N: number, M: number) => {
+export const generateRandomGraph = (N: number, M: number): Edge[] => {
     let prufer: number[] = [];
     let result: Edge[] = [];
     let deg: number[] = new Array<number>(N).fill(1);
@@ -42,33 +42,33 @@ export const generateRandomGraph = (N: number, M: number) => {
         deg[prufer[i]]++;
     }
     const pq = Priority_queue<number>();
-    const mp = new Set<[number, number]>();
+    const mp = new Set<string>();
     for(let i=0;i<N;i++) if(deg[i]==1) pq.push(i);
     prufer.forEach((node) => {
         let u = pq.top()!;
         let v = node;
         pq.pop();
         deg[v]--;
-        if(deg[u]==1) pq.push(v);
+        if(deg[v]==1) pq.push(v);
         if(u>v) [u, v] = [v, u];
         result.push(make_edge(u, v, getRandom(1, 1000)));
-        mp.add([u, v]);
+        mp.add(`${u},${v}`);
     })
     let u = pq.top()!; pq.pop();
     let v = pq.top()!; pq.pop();
     result.push(make_edge(u, v, getRandom(1, 1000)));
-    if(u<v) mp.add([u, v]);
-    else mp.add([v, u]);
+    if(u<v) mp.add(`${u},${v}`);
+    else mp.add(`${v},${u}`);
 
     M = Math.min(N*(N-1)/2, M);
     let it = 0;
     while(result.length<M && it<=1000){
-        u = getRandom(0, N-1);
+        u = getRandom(0, N-2);
         v = getRandom(u+1, N-1);
         ++it;
-        if(mp.has([u, v])) continue;
+        if(mp.has(`${u},${v}`)) continue;
         result.push(make_edge(u, v, getRandom(1, 1000)));
-        mp.add([u, v]);
+        mp.add(`${u},${v}`);
     }
     // console.log(result);
     

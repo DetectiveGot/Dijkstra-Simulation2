@@ -6,24 +6,9 @@ import { useEffect, useRef, useState } from "react"
 import type React from "react"
 import { Button } from "@/ui/button"
 import { generateRandomGraph } from "@/lib/generateGraph"
-
-type NodeId = string;
-
-interface Edge {
-    u: NodeId;
-    v: NodeId;
-    data: {
-        w?: number;
-    }
-}
-
-interface Node {
-    u: NodeId;
-    data: {
-        vis: boolean;
-        dist: number;
-    }
-}
+import Priority_queue from "@/lib/priority_queue"
+import { Edge, NodeId, Node, ToEdge, PQItem } from "@/types/graph"
+import next from "next"
 
 const NODE_RADIUS = 12;
 const MAX_SCALE = 3;
@@ -31,6 +16,8 @@ const MIN_SCALE = 0.8;
 const DRAG_DEL_X = 50;
 const DRAG_DEL_Y = 50;
 const INF = Infinity;
+const SPEED = 500;
+const START_NODE = "1";
 
 const clamp = (val: number, lo: number, hi: number) => {
     return Math.min(Math.max(val, lo), hi);
@@ -42,7 +29,7 @@ export default function SimulationPage() {
     const layoutRef = useRef<ReturnType<typeof createLayout>|null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [camera, setCamera] = useState({x: 0, y: 0, scale: 1});
-    const [canvasSize, setCanvasSize] = useState({width: 0, height: 0});
+    // const [canvasSize, setCanvasSize] = useState({width: 0, height: 0});
 
     const [phySetting, setPhysicSetting] = useState({
         timeStep: 0.5,
@@ -55,8 +42,8 @@ export default function SimulationPage() {
     });
 
     // const [graphEdges, setGraphEdges] = useState<Edge[]>([{u:"1", v:"2", data: {w: 1}}]);
-    const [graphEdges, setGraphEdges] = useState<Edge[]>(generateRandomGraph(5, 10));
-    // const adjList: Edge[];
+    const [graphEdges, setGraphEdges] = useState<Edge[]>(() => generateRandomGraph(5, 4));
+    const adjList = useRef<Map<string, ToEdge[]>>(new Map());
     const [playing, setPlaying] = useState<boolean>(false);
 
     const initGraph = () => {
@@ -72,15 +59,25 @@ export default function SimulationPage() {
 
         graphEdges.forEach((edge) => {
             graph.addLink(edge.u, edge.v, edge.data);
+            const listu = adjList.current.get(edge.u) ?? [];
+            const listv = adjList.current.get(edge.v) ?? [];
+            listu.push({v: edge.v, data: edge.data});
+            listv.push({v: edge.u, data: edge.data});
+            adjList.current.set(edge.u, listu);
+            adjList.current.set(edge.v, listv);
         })
 
         graph.forEachNode((node) => {
+            const u = String(node.id);
+            const data = {u: u, 
+                data: {
+                    vis: false,
+                    dist: Infinity
+                }}
             node.data = {nodeDist: INF};
-        })
-
-        return () => {
+            nodeList.current.set(u, data);
             
-        }
+        })
     }
     const [lastPos, setLastPos] = useState({x: 0, y: 0});
     const onPointerDown: React.PointerEventHandler<HTMLCanvasElement> = (e) => {
@@ -139,10 +136,15 @@ export default function SimulationPage() {
         const rect = canvas.getBoundingClientRect();
         canvas.width = rect.width*dpr;
         canvas.height = rect.height*dpr;
-        setCanvasSize({width: canvas.width, height: canvas.height});
+        // setCanvasSize({width: canvas.width, height: canvas.height});
 
         // ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.setTransform(dpr * camera.scale, 0, 0, dpr * camera.scale, camera.x * dpr, camera.y * dpr);
+
+        graph.forEachNode((node) => {
+            const u = String(node.id);
+            node.data.nodeDist = nodeList.current.get(u)?.data.dist;
+        })
 
         graph.forEachLink((edge) => {
             const edgeId = edge.id;
@@ -164,7 +166,7 @@ export default function SimulationPage() {
         })
 
         graph.forEachNode((node) => {
-            const nodeId = node.id;
+            const nodeId = String(node.id);
             const { x:node_x, y:node_y } = layout.getNodePosition(nodeId);
             // console.log(node_x, node_y);
             //draw circle
@@ -192,8 +194,73 @@ export default function SimulationPage() {
     useEffect(() => {
         draw();
     }, [camera]);
-    const startSim = () => {
+    const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const pq = useRef(Priority_queue<PQItem>());
+    const curList = useRef<ToEdge[] | null>([]);
+    const nodeList = useRef<Map<string, Node>>(new Map());
+    const curNode = useRef<PQItem>([0, START_NODE]);
+    useEffect(() => {
+        if(playing){
+            startSim();
+            return () => stopSim();
+        } else {
+            stopSim();
+        }
+    }, [playing])
 
+    const updateNode = (node: string, val: number) => {
+        if(!nodeList.current) return;
+        const nodeData = nodeList.current.get(node);
+        if(!nodeData) return;
+        if(!pq.current){
+            console.error("pq is not found");
+            return;
+        }
+        if(nodeData.data.dist>val){
+            nodeData.data.dist = val;
+            pq.current.push([val, node]);
+        }
+    }
+
+    const nextOperation = () => {
+        if(!curList.current) return;
+        const [dist, u] = curNode.current;
+        if(curList.current.length === 0){
+            if(pq.current.empty()) return;
+            curNode.current = pq.current.top()!;
+            pq.current.pop();
+            const U = curNode.current[1];
+            const dt = nodeList.current.get(U);
+            if(dt) dt.data.vis = true;
+            curList.current = adjList.current.get(curNode.current[1])?.slice() ?? [];
+            // console.log(U);
+        } else {
+            const to = curList.current[curList.current.length-1];
+            curList.current.pop();
+            updateNode(to.v, dist+(to.data.w ?? 0));
+            // console.log(to);
+        }
+        draw();
+    }
+
+    const startSim = () => {
+        if(intervalIdRef.current) return;
+        if(!nodeList.current) return;
+        const startPQNode = nodeList.current.get(START_NODE);
+        if(startPQNode) {
+            if(!startPQNode.data.vis){
+                startPQNode.data.dist = 0;
+                pq.current.push([0, START_NODE]);
+            }
+        }
+        nextOperation();
+        intervalIdRef.current = setInterval(nextOperation, SPEED)
+    }
+
+    const stopSim = () => {
+        if(!intervalIdRef.current) return;
+        clearInterval(intervalIdRef.current)
+        intervalIdRef.current = null;
     }
     return (
         <div>
