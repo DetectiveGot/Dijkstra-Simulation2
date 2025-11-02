@@ -18,7 +18,7 @@ interface Node {
     }
 }
 
-const getRandom = (l: number, r: number) => {
+export const getRandom = (l: number, r: number) => {
     return l + Math.floor(Math.random()*(r-l+1));
 }
 

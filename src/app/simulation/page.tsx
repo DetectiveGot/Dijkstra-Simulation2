@@ -7,8 +7,10 @@ import type React from "react"
 import { Button } from "@/ui/button"
 import { generateRandomGraph } from "@/lib/generateGraph"
 import Priority_queue from "@/lib/priority_queue"
-import { Edge, NodeId, Node, ToEdge, PQItem } from "@/types/graph"
+import { Edge, NodeId, Node, ToEdge, PQItem, Coord2d } from "@/types/graph"
+import { getRandom } from "@/lib/generateGraph"
 import next from "next"
+import { Corners } from "next/dist/next-devtools/dev-overlay/shared"
 
 const NODE_RADIUS = 12;
 const MAX_SCALE = 3;
@@ -27,8 +29,10 @@ export default function SimulationPage() {
     const graphRef = useRef<ReturnType<typeof createGraph>|null>(null);
     const canvasRef = useRef<HTMLCanvasElement|null>(null);
     const layoutRef = useRef<ReturnType<typeof createLayout>|null>(null);
-    const [isDragging, setIsDragging] = useState(false);
-    const [camera, setCamera] = useState({x: 0, y: 0, scale: 1});
+    // const [isDragging, setIsDragging] = useState(false);
+    const isDragging = useRef<boolean>(false);
+    // const [camera, setCamera] = useState({x: 0, y: 0, scale: 1});
+    const camera = useRef({x: 0, y: 0, scale: 1})
     // const [canvasSize, setCanvasSize] = useState({width: 0, height: 0});
 
     const [phySetting, setPhysicSetting] = useState({
@@ -56,6 +60,9 @@ export default function SimulationPage() {
             return;
         }
         const canvas = canvasRef.current;
+        const canvasSize = canvas?.getBoundingClientRect() ?? {width: 0, height: 0};
+        const cWidth = canvasSize.width;
+        const cHeight = canvasSize.height;
 
         graphEdges.forEach((edge) => {
             graph.addLink(edge.u, edge.v, edge.data);
@@ -76,46 +83,102 @@ export default function SimulationPage() {
                 }}
             node.data = {nodeDist: INF};
             nodeList.current.set(u, data);
-            
+            layout.setNodePosition(u, clamp(0, getRandom(0, cWidth-1), cWidth-1), clamp(0, getRandom(0, cHeight-1), cHeight-1));
         })
     }
-    const [lastPos, setLastPos] = useState({x: 0, y: 0});
+    const lastPos = useRef<Coord2d|null>({x: 0, y: 0});
+    const closestNodeId = useRef<NodeId|null>(null);
+
+    const toWorldCoord = (pos: Coord2d): (Coord2d|null) => {
+        if(!canvasRef.current) return null;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const mx = pos.x-rect.left;
+        const my = pos.y-rect.top;
+        const wx = (mx-camera.current.x)/camera.current.scale;
+        const wy = (my-camera.current.y)/camera.current.scale;
+        return {x: wx, y: wy}
+    }
+
+    const closestPair = (wPos: Coord2d) => {
+        if(!graphRef.current) return null;
+        if(!layoutRef.current) return null;
+        const layout = layoutRef.current;
+        const graph = graphRef.current;
+        let minDist = Infinity;
+        let minNodeId = null;
+        graph.forEachNode((node) => {
+            const nodeId = String(node.id);
+            const pos = layout.getNodePosition(nodeId);
+            const cal = (wPos.x-pos.x)*(wPos.x-pos.x) + (wPos.y-pos.y)*(wPos.y-pos.y);
+            if(cal<=NODE_RADIUS*NODE_RADIUS && cal<minDist){
+                minDist = cal;
+                minNodeId = node.id;
+            }
+        })
+        return minNodeId;
+    }
+    //left 1
+    //right 2
+    //mid 4
     const onPointerDown: React.PointerEventHandler<HTMLCanvasElement> = (e) => {
-        setIsDragging(true);
-        setLastPos({ x: e.clientX, y: e.clientY });
+        isDragging.current = true;
+        const isMouse = e.pointerType === "mouse";
+        if(!isMouse || (isMouse && !!(e.buttons&1))){
+            const wPos = toWorldCoord({x: e.clientX, y: e.clientY});
+            if(wPos) closestNodeId.current = closestPair(wPos);
+        }
+        lastPos.current = { x: e.clientX, y: e.clientY };
         e.currentTarget.setPointerCapture(e.pointerId);
     }
 
     const onPointerMove: React.PointerEventHandler<HTMLCanvasElement> = (e) => {
-        if (!isDragging) return;
-        const dx = e.clientX - lastPos.x;
-        const dy = e.clientY - lastPos.y;
-        setCamera((p) => ({ ...p, x: p.x + dx, y: p.y + dy}));
-        setLastPos({ x: e.clientX, y: e.clientY });
+        if (!isDragging.current) return;
+        if(!lastPos.current) return;
+        const isMouse = e.pointerType === "mouse";
+        const dx = e.clientX - lastPos.current.x;
+        const dy = e.clientY - lastPos.current.y;
+        if((!isMouse && !closestNodeId.current) || (isMouse && !!(e.buttons&2))){
+            camera.current = { ...camera.current, x: camera.current.x + dx, y: camera.current.y + dy}
+        }
+        if(!isMouse || (isMouse && !!(e.buttons&1))) {
+            if(closestNodeId.current && layoutRef.current && graphRef.current) {
+                const layout = layoutRef.current;
+                const graph = graphRef.current;
+                const wpos = toWorldCoord({x: e.clientX, y: e.clientY});
+                if(wpos) {
+                    layout.pinNode(graph.getNode(closestNodeId.current)!, true);
+                    layout.setNodePosition(closestNodeId.current, wpos.x, wpos.y)
+                }
+            }
+        }
+        
+        lastPos.current = { x: e.clientX, y: e.clientY };
     }
 
     const onPointerUp: React.PointerEventHandler<HTMLCanvasElement> = (e) => {
-        setIsDragging(false);
+        isDragging.current = false;
         e.currentTarget.releasePointerCapture(e.pointerId);
+        const graph = graphRef.current;
+        const layout = layoutRef.current;
+        if(graph && layout && closestNodeId.current){
+            layout.pinNode(graph.getNode(closestNodeId.current)!, false);
+            closestNodeId.current = null;
+        }
     }
 
     const onWheel: React.WheelEventHandler<HTMLElement> = (e) => {
         const dy = e.deltaY;
-        // if(dy<0) setCamera((p) => ({...p, scale: clamp(p.scale*1.1, MIN_SCALE, MAX_SCALE)}));
-        // else if(dy>0) setCamera((p) => ({...p, scale: clamp(p.scale*0.9, MIN_SCALE, MAX_SCALE)}));
         if(!canvasRef.current) return;
         const rect = canvasRef.current.getBoundingClientRect();
         const mx = e.clientX-rect.left;
         const my = e.clientY-rect.top;
-        setCamera((p) => {
-            const wx = (mx-p.x)/p.scale;
-            const wy = (my-p.y)/p.scale;
-            let newScale = p.scale;
-            if(dy<0) newScale = p.scale*1.1;
-            else newScale = p.scale*0.9;
-            newScale = clamp(newScale, MIN_SCALE, MAX_SCALE);
-            return {x: mx-wx*newScale, y: my-wy*newScale, scale: newScale};
-        });
+        const wx = (mx-camera.current.x)/camera.current.scale;
+        const wy = (my-camera.current.y)/camera.current.scale;
+        let newScale = camera.current.scale;
+        if(dy<0) newScale = camera.current.scale*1.1;
+        else newScale = camera.current.scale*0.9;
+        newScale = clamp(newScale, MIN_SCALE, MAX_SCALE);
+        camera.current = {x: mx-wx*newScale, y: my-wy*newScale, scale: newScale};
     }
 
     const draw = () => {
@@ -128,7 +191,6 @@ export default function SimulationPage() {
             if(!graph) console.error("graph is not found");
             return;
         }
-        layout.step();
         const ctx = canvas.getContext("2d")!;
 
         //resize canvas
@@ -139,11 +201,11 @@ export default function SimulationPage() {
         // setCanvasSize({width: canvas.width, height: canvas.height});
 
         // ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.setTransform(dpr * camera.scale, 0, 0, dpr * camera.scale, camera.x * dpr, camera.y * dpr);
+        ctx.setTransform(dpr * camera.current.scale, 0, 0, dpr * camera.current.scale, camera.current.x * dpr, camera.current.y * dpr);
 
         graph.forEachNode((node) => {
             const u = String(node.id);
-            node.data.nodeDist = nodeList.current.get(u)?.data.dist;
+            node.data = nodeList.current.get(u)?.data ?? {dist: Infinity, vis: false};
         })
 
         graph.forEachLink((edge) => {
@@ -172,7 +234,8 @@ export default function SimulationPage() {
             //draw circle
             ctx.beginPath();
             ctx.arc(node_x, node_y, NODE_RADIUS, 0, Math.PI*2);
-            ctx.strokeStyle = "black";
+            if(node.data.vis) ctx.strokeStyle = "blue";
+            else ctx.strokeStyle = "black";
             ctx.fillStyle = "white";
             ctx.fill();
             ctx.stroke();
@@ -183,17 +246,25 @@ export default function SimulationPage() {
             ctx.fillStyle = "black";
             ctx.fillText(nodeId, node_x, node_y);
             //label distance from start node
-            ctx.fillText(node.data.nodeDist, node_x, node_y-NODE_RADIUS-10);
+            ctx.fillText(node.data.dist, node_x, node_y-NODE_RADIUS-10);
         })
     }
-    useEffect(() => {
-        initGraph();
-        draw();
-    }, []);
+
+    const rafRef = useRef<number | null>(null);
     
     useEffect(() => {
-        draw();
-    }, [camera]);
+        initGraph();
+        const frame = () => {
+            layoutRef.current?.step();
+            draw();
+            rafRef.current = requestAnimationFrame(frame);
+        }
+        rafRef.current = requestAnimationFrame(frame);
+        return () => {
+            if(rafRef.current) cancelAnimationFrame(rafRef.current);
+            rafRef.current = null;
+        }
+    }, []);
     const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const pq = useRef(Priority_queue<PQItem>());
     const curList = useRef<ToEdge[] | null>([]);
@@ -216,7 +287,7 @@ export default function SimulationPage() {
             console.error("pq is not found");
             return;
         }
-        if(nodeData.data.dist>val){
+        if(!nodeData.data.vis && nodeData.data.dist>val){
             nodeData.data.dist = val;
             pq.current.push([val, node]);
         }
@@ -240,7 +311,6 @@ export default function SimulationPage() {
             updateNode(to.v, dist+(to.data.w ?? 0));
             // console.log(to);
         }
-        draw();
     }
 
     const startSim = () => {
@@ -263,7 +333,7 @@ export default function SimulationPage() {
         intervalIdRef.current = null;
     }
     return (
-        <div>
+        <div className="h-full flex">
             <canvas ref={canvasRef} 
             style={{touchAction:'none'}} 
             onContextMenu={(e) => e.preventDefault()}
