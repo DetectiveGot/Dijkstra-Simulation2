@@ -7,19 +7,15 @@ import type React from "react"
 import { Button } from "@/ui/button"
 import { generateRandomGraph } from "@/lib/generateGraph"
 import Priority_queue from "@/lib/priority_queue"
-import { Edge, NodeId, Node, ToEdge, PQItem, Coord2d } from "@/types/graph"
+import { Edge, NodeId, Node, ToEdge, PQItem, Coord2d, PhysicSetting } from "@/types/graph"
 import { getRandom } from "@/lib/generateGraph"
 import { GraphSetting } from "@/components/setting"
 
 const NODE_RADIUS = 12;
 const MAX_SCALE = 3;
 const MIN_SCALE = 0.8;
-const DRAG_DEL_X = 50;
-const DRAG_DEL_Y = 50;
 const INF = Infinity;
 const SPEED = 500;
-const START_NODE = "1";
-const TARGET_NODE = "4";
 
 const clamp = (val: number, lo: number, hi: number) => {
     return Math.min(Math.max(val, lo), hi);
@@ -31,8 +27,11 @@ export default function SimulationPage() {
     const layoutRef = useRef<ReturnType<typeof createLayout>|null>(null);
     const isDragging = useRef<boolean>(false);
     const camera = useRef({x: 0, y: 0, scale: 1})
+    const [showSetting, setShowSetting] = useState(false);
+    const [START_NODE, set_START_NODE] = useState<string>("1");
+    const [TARGET_NODE, set_TARGET_NODE] = useState<string>("4");
 
-    const [phySetting, setPhysicSetting] = useState({
+    let [phySetting, setPhysicSetting] = useState<PhysicSetting>({
         timeStep: 0.5,
         dimensions: 2,
         gravity: -12,
@@ -45,6 +44,24 @@ export default function SimulationPage() {
     const [graphEdges, setGraphEdges] = useState<Edge[]>(() => generateRandomGraph(5, 4));
     const adjList = useRef<Map<string, ToEdge[]>>(new Map());
     const [playing, setPlaying] = useState<boolean>(false);
+    const rafRef = useRef<number | null>(null);
+    const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const pq = useRef(Priority_queue<PQItem>());
+    const curList = useRef<ToEdge[] | null>([]);
+    const nodeList = useRef<Map<string, Node>>(new Map());
+    const curNode = useRef<PQItem>([0, START_NODE]);
+    const pvEdge = useRef<[string, string]|null>(null);
+
+    const resetGraph = () => {
+        stopAll();
+        adjList.current = new Map();
+        setPlaying(false);
+        pq.current = Priority_queue<PQItem>();
+        curList.current = [];
+        nodeList.current = new Map();
+        curNode.current = [0, START_NODE];
+        pvEdge.current = null;
+    }
 
     const initGraph = () => {
         graphRef.current = createGraph();
@@ -55,6 +72,7 @@ export default function SimulationPage() {
             console.warn("initGraph layout or graph is null");
             return;
         }
+        resetGraph();
         const canvas = canvasRef.current;
         const canvasSize = canvas?.getBoundingClientRect() ?? {width: 0, height: 0};
         const cWidth = canvasSize.width;
@@ -242,9 +260,6 @@ export default function SimulationPage() {
         })
     }
 
-    const rafRef = useRef<number | null>(null);
-    const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
     const stopAll = () => {
         if(intervalIdRef.current) {
             clearInterval(intervalIdRef.current);
@@ -270,11 +285,8 @@ export default function SimulationPage() {
             running = false;
             stopAll();
         }
-    }, []);
-    const pq = useRef(Priority_queue<PQItem>());
-    const curList = useRef<ToEdge[] | null>([]);
-    const nodeList = useRef<Map<string, Node>>(new Map());
-    const curNode = useRef<PQItem>([0, START_NODE]);
+    }, [phySetting]);
+    
     useEffect(() => {
         if(playing){
             startSim();
@@ -308,8 +320,6 @@ export default function SimulationPage() {
         edge.data.cur = cur;
         edge.data.inPath = inPath;
     }
-
-    const pvEdge = useRef<[string, string]|null>(null);
 
     const nextOperation = () => {
         if(!curList.current) return;
@@ -377,11 +387,11 @@ export default function SimulationPage() {
             onPointerUp={onPointerUp} 
             className="w-full h-full shadow"></canvas>
             <div className="absolute justify-center items-center left-1 top-3 flex flex-col bg-slate-50 shadow p-3 rounded-md space-y-1.5">
-                <Button onClick={(e) => setPlaying(!playing)}>{playing?"Stop":"Play"}</Button>
-                <Button>Setting</Button>
+                <Button onClick={() => setPlaying(!playing)}>{playing?"Stop":"Play"}</Button>
+                <Button onClick={() => setShowSetting(!showSetting)}>Setting</Button>
                 <Button>Graph</Button>
             </div>
-            {/* <GraphSetting/> */}
+            {showSetting && <GraphSetting init={phySetting} onApply={(next) => { setPhysicSetting(next); setShowSetting(false); }}/>}
         </div>
     )
 } 

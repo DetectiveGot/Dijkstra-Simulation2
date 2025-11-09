@@ -43,5 +43,7 @@ export default function Priority_queue<T>(){
 
     const empty = () => heap.length===0;
 
+    const clear = () => heap = [];
+
     return {push, pop, top, empty, heap};
 }

@@ -1,5 +1,14 @@
 export type NodeId = string;
 export type PQItem = [pq_dist: number, pq_u: NodeId]
+export type PhysicSetting = {
+    timeStep: number;
+    dimensions: number;
+    gravity: number;
+    theta: number;
+    springLength: number;
+    springCoefficient: number;
+    dragCoefficient: number;
+};
 
 export interface Edge {
     u: NodeId;

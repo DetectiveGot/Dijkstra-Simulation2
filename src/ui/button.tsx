@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import React, { ButtonHTMLAttributes, FC, forwardRef } from "react";
 
 const buttonVariants = cva(
-  "p-4 rounded-md",
+  "p-4 rounded-md inline-flex items-center justify-center",
   {
     variants: {
       variant: {
@@ -13,8 +13,8 @@ const buttonVariants = cva(
       size: {
         default: "h-10 px-4 py-2 rounded-md",
         primary: "w-36 h-10 px-4 py-2 rounded-md text-xl",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
+        sm: "h-9 rounded-md px-3 text-sm",
+        lg: "h-11 rounded-md px-8 text-lg",
       },
     },
     defaultVariants: {
@@ -27,6 +27,6 @@ const buttonVariants = cva(
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {};
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(({className, size, variant, ...props}, ref) => {
-  return <button ref={ref} className={cn(buttonVariants({variant, size, className}))} {...props} />
+  return <button ref={ref} className={cn(buttonVariants({variant, size}), className)} {...props} />
 })
 export { Button, buttonVariants };
