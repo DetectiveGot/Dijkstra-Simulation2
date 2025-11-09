@@ -1,22 +1,5 @@
 import Priority_queue from "./priority_queue";
-
-type NodeId = string;
-
-interface Edge {
-    u: NodeId;
-    v: NodeId;
-    data: {
-        w: number;
-    }
-}
-
-interface Node {
-    u: NodeId;
-    data: {
-        vis: boolean;
-        dist: number;
-    }
-}
+import { Edge, Node } from "@/types/graph";
 
 export const getRandom = (l: number, r: number) => {
     return l + Math.floor(Math.random()*(r-l+1));
@@ -27,7 +10,9 @@ const make_edge = (u: number, v: number, w: number) => {
         u: String(u),
         v: String(v),
         data: {
-            w: w
+            w: w,
+            cur: false,
+            inPath: false,
         }
     }
     return res;

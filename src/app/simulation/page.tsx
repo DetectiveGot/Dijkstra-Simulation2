@@ -9,8 +9,7 @@ import { generateRandomGraph } from "@/lib/generateGraph"
 import Priority_queue from "@/lib/priority_queue"
 import { Edge, NodeId, Node, ToEdge, PQItem, Coord2d } from "@/types/graph"
 import { getRandom } from "@/lib/generateGraph"
-import next from "next"
-import { Corners } from "next/dist/next-devtools/dev-overlay/shared"
+import { GraphSetting } from "@/components/setting"
 
 const NODE_RADIUS = 12;
 const MAX_SCALE = 3;
@@ -20,6 +19,7 @@ const DRAG_DEL_Y = 50;
 const INF = Infinity;
 const SPEED = 500;
 const START_NODE = "1";
+const TARGET_NODE = "4";
 
 const clamp = (val: number, lo: number, hi: number) => {
     return Math.min(Math.max(val, lo), hi);
@@ -29,11 +29,8 @@ export default function SimulationPage() {
     const graphRef = useRef<ReturnType<typeof createGraph>|null>(null);
     const canvasRef = useRef<HTMLCanvasElement|null>(null);
     const layoutRef = useRef<ReturnType<typeof createLayout>|null>(null);
-    // const [isDragging, setIsDragging] = useState(false);
     const isDragging = useRef<boolean>(false);
-    // const [camera, setCamera] = useState({x: 0, y: 0, scale: 1});
     const camera = useRef({x: 0, y: 0, scale: 1})
-    // const [canvasSize, setCanvasSize] = useState({width: 0, height: 0});
 
     const [phySetting, setPhysicSetting] = useState({
         timeStep: 0.5,
@@ -45,7 +42,6 @@ export default function SimulationPage() {
         dragCoefficient: 0.9,
     });
 
-    // const [graphEdges, setGraphEdges] = useState<Edge[]>([{u:"1", v:"2", data: {w: 1}}]);
     const [graphEdges, setGraphEdges] = useState<Edge[]>(() => generateRandomGraph(5, 4));
     const adjList = useRef<Map<string, ToEdge[]>>(new Map());
     const [playing, setPlaying] = useState<boolean>(false);
@@ -79,11 +75,11 @@ export default function SimulationPage() {
             const data = {u: u, 
                 data: {
                     vis: false,
-                    dist: Infinity
+                    dist: Infinity,
+                    cur: false
                 }}
-            node.data = {nodeDist: INF};
             nodeList.current.set(u, data);
-            layout.setNodePosition(u, clamp(0, getRandom(0, cWidth-1), cWidth-1), clamp(0, getRandom(0, cHeight-1), cHeight-1));
+            layout.setNodePosition(u, clamp(getRandom(0, cWidth-1), 0, cWidth-1), clamp(getRandom(0, cHeight-1), 0, cHeight-1));
         })
     }
     const lastPos = useRef<Coord2d|null>({x: 0, y: 0});
@@ -166,7 +162,7 @@ export default function SimulationPage() {
         }
     }
 
-    const onWheel: React.WheelEventHandler<HTMLElement> = (e) => {
+    const onWheel: React.WheelEventHandler<HTMLCanvasElement> = (e) => {
         const dy = e.deltaY;
         if(!canvasRef.current) return;
         const rect = canvasRef.current.getBoundingClientRect();
@@ -185,12 +181,7 @@ export default function SimulationPage() {
         const graph = graphRef.current;
         const layout = layoutRef.current;
         const canvas = canvasRef.current;
-        if(!canvas || !graph || !layout) {
-            if(!canvas) console.error("canvas is not found");
-            if(!layout) console.error("layout is not found");
-            if(!graph) console.error("graph is not found");
-            return;
-        }
+        if(!canvas || !graph || !layout) return;
         const ctx = canvas.getContext("2d")!;
 
         //resize canvas
@@ -198,14 +189,12 @@ export default function SimulationPage() {
         const rect = canvas.getBoundingClientRect();
         canvas.width = rect.width*dpr;
         canvas.height = rect.height*dpr;
-        // setCanvasSize({width: canvas.width, height: canvas.height});
 
-        // ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.setTransform(dpr * camera.current.scale, 0, 0, dpr * camera.current.scale, camera.current.x * dpr, camera.current.y * dpr);
 
         graph.forEachNode((node) => {
             const u = String(node.id);
-            node.data = nodeList.current.get(u)?.data ?? {dist: Infinity, vis: false};
+            node.data = nodeList.current.get(u)?.data ?? {dist: Infinity, vis: false, cur: false};
         })
 
         graph.forEachLink((edge) => {
@@ -217,6 +206,9 @@ export default function SimulationPage() {
             ctx.beginPath();
             ctx.moveTo(p_from.x, p_from.y);
             ctx.lineTo(p_to.x, p_to.y);
+            if(edge.data.cur) ctx.strokeStyle = "orange";
+            else if(edge.data.inPath) ctx.strokeStyle = "green";
+            else ctx.strokeStyle = "black"
             ctx.stroke();
 
             //edge weight label
@@ -230,11 +222,11 @@ export default function SimulationPage() {
         graph.forEachNode((node) => {
             const nodeId = String(node.id);
             const { x:node_x, y:node_y } = layout.getNodePosition(nodeId);
-            // console.log(node_x, node_y);
             //draw circle
             ctx.beginPath();
             ctx.arc(node_x, node_y, NODE_RADIUS, 0, Math.PI*2);
-            if(node.data.vis) ctx.strokeStyle = "blue";
+            if(node.data.cur) ctx.strokeStyle = "orange";
+            else if(node.data.vis) ctx.strokeStyle = "blue";
             else ctx.strokeStyle = "black";
             ctx.fillStyle = "white";
             ctx.fill();
@@ -251,21 +243,34 @@ export default function SimulationPage() {
     }
 
     const rafRef = useRef<number | null>(null);
+    const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const stopAll = () => {
+        if(intervalIdRef.current) {
+            clearInterval(intervalIdRef.current);
+            intervalIdRef.current = null;
+        }
+        if(rafRef.current) {
+            cancelAnimationFrame(rafRef.current);
+            rafRef.current = null;
+        }
+    }
     
     useEffect(() => {
         initGraph();
+        let running = true;
         const frame = () => {
+            if(!running) return;
             layoutRef.current?.step();
             draw();
             rafRef.current = requestAnimationFrame(frame);
         }
         rafRef.current = requestAnimationFrame(frame);
         return () => {
-            if(rafRef.current) cancelAnimationFrame(rafRef.current);
-            rafRef.current = null;
+            running = false;
+            stopAll();
         }
     }, []);
-    const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const pq = useRef(Priority_queue<PQItem>());
     const curList = useRef<ToEdge[] | null>([]);
     const nodeList = useRef<Map<string, Node>>(new Map());
@@ -293,23 +298,52 @@ export default function SimulationPage() {
         }
     }
 
+    const updateEdge = (fromNode: string, toNode: string, cur: boolean, inPath: boolean) => {
+        const graph = graphRef.current;
+        const layout = layoutRef.current;
+        if(!graph || !layout) return;
+        if(!fromNode || !toNode) return;
+        const edge = graph.getLink(fromNode, toNode) || graph.getLink(toNode, fromNode);
+        if(!edge) return;
+        edge.data.cur = cur;
+        edge.data.inPath = inPath;
+    }
+
+    const pvEdge = useRef<[string, string]|null>(null);
+
     const nextOperation = () => {
         if(!curList.current) return;
         const [dist, u] = curNode.current;
+        if(pvEdge.current){
+            updateEdge(pvEdge.current[0], pvEdge.current[1], false, false);
+            pvEdge.current = null;
+        }
+        const pv_dt = nodeList.current.get(u);
+        if(pv_dt) pv_dt.data.cur = false;
         if(curList.current.length === 0){
-            if(pq.current.empty()) return;
-            curNode.current = pq.current.top()!;
-            pq.current.pop();
-            const U = curNode.current[1];
-            const dt = nodeList.current.get(U);
-            if(dt) dt.data.vis = true;
-            curList.current = adjList.current.get(curNode.current[1])?.slice() ?? [];
-            // console.log(U);
+            let dt = null;
+            let U = null;
+            while(!pq.current.empty()){
+                curNode.current = pq.current.top()!;
+                pq.current.pop();
+                dt = nodeList.current.get(curNode.current[1]);
+                if(!(dt?.data.vis)) {
+                    U = curNode.current[1];
+                    break;
+                }
+            }
+            if(!U) return;
+            if(dt) {
+                dt.data.vis = true;
+                dt.data.cur = true;
+            }
+            curList.current = adjList.current.get(U)?.slice() ?? [];
         } else {
             const to = curList.current[curList.current.length-1];
+            updateEdge(u, to.v, true, false);
+            pvEdge.current = [u, to.v];
             curList.current.pop();
             updateNode(to.v, dist+(to.data.w ?? 0));
-            // console.log(to);
         }
     }
 
@@ -333,7 +367,7 @@ export default function SimulationPage() {
         intervalIdRef.current = null;
     }
     return (
-        <div className="h-full flex">
+        <div className="relative h-full flex">
             <canvas ref={canvasRef} 
             style={{touchAction:'none'}} 
             onContextMenu={(e) => e.preventDefault()}
@@ -342,9 +376,12 @@ export default function SimulationPage() {
             onPointerMove={onPointerMove} 
             onPointerUp={onPointerUp} 
             className="w-full h-full shadow"></canvas>
-            <div className="fixed bottom-5 flex justify-center items-center inset-x-0">
-                <Button variant={"primary"} size={"primary"} onClick={(e) => setPlaying(!playing)}>{playing?"Stop":"Play"}</Button>
+            <div className="absolute justify-center items-center left-1 top-3 flex flex-col bg-slate-50 shadow p-3 rounded-md space-y-1.5">
+                <Button onClick={(e) => setPlaying(!playing)}>{playing?"Stop":"Play"}</Button>
+                <Button>Setting</Button>
+                <Button>Graph</Button>
             </div>
+            {/* <GraphSetting/> */}
         </div>
     )
 } 

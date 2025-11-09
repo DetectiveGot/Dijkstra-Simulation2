@@ -5,14 +5,16 @@ export interface Edge {
     u: NodeId;
     v: NodeId;
     data: {
-        w: number;
+        w: number,
+        cur: boolean
+        inPath: boolean
     }
 }
 
 export interface ToEdge {
     v: NodeId;
     data: {
-        w: number;
+        w: number,
     }
 }
 
@@ -20,6 +22,7 @@ export interface Node {
     u: NodeId;
     data: {
         vis: boolean;
+        cur: boolean;
         dist: number;
     }
 }
