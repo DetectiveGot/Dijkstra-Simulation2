@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import React, { Children, forwardRef } from "react";
 
 const cardVariants = cva(
-    "shadow z-50 rounded-2xl", 
+    "shadow z-50 rounded-2xl bg-white", 
     {
         variants: {
             variant: {

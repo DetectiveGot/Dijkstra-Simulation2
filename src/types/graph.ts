@@ -1,6 +1,6 @@
 export type NodeId = string;
 export type PQItem = [pq_dist: number, pq_u: NodeId]
-export type PhysicSetting = {
+export type PhysicSettingType = {
     timeStep: number;
     dimensions: number;
     gravity: number;
@@ -9,6 +9,13 @@ export type PhysicSetting = {
     springCoefficient: number;
     dragCoefficient: number;
 };
+
+export type GraphSettingType = {
+    START_NODE: string,
+    TARGET_NODE: string,
+    DirectedGraph: boolean,
+    SPEED: number
+}
 
 export interface Edge {
     u: NodeId;

@@ -7,15 +7,15 @@ import type React from "react"
 import { Button } from "@/ui/button"
 import { generateRandomGraph } from "@/lib/generateGraph"
 import Priority_queue from "@/lib/priority_queue"
-import { Edge, NodeId, Node, ToEdge, PQItem, Coord2d, PhysicSetting } from "@/types/graph"
+import { Edge, NodeId, Node, ToEdge, PQItem, Coord2d, PhysicSettingType, GraphSettingType } from "@/types/graph"
 import { getRandom } from "@/lib/generateGraph"
-import { GraphSetting } from "@/components/setting"
+import { PhysicSettings } from "@/components/setting"
+import { GraphSetting } from "@/components/graphSetting"
 
 const NODE_RADIUS = 12;
 const MAX_SCALE = 3;
 const MIN_SCALE = 0.8;
 const INF = Infinity;
-const SPEED = 500;
 
 const clamp = (val: number, lo: number, hi: number) => {
     return Math.min(Math.max(val, lo), hi);
@@ -28,10 +28,10 @@ export default function SimulationPage() {
     const isDragging = useRef<boolean>(false);
     const camera = useRef({x: 0, y: 0, scale: 1})
     const [showSetting, setShowSetting] = useState(false);
-    const [START_NODE, set_START_NODE] = useState<string>("1");
-    const [TARGET_NODE, set_TARGET_NODE] = useState<string>("4");
+    const [showGraphSet, setShowGraphSet] = useState(false);
+    const [graphSetting, setGraphSetting] = useState<GraphSettingType>({START_NODE: "1", TARGET_NODE: "4", SPEED: 500, DirectedGraph: false});
 
-    let [phySetting, setPhysicSetting] = useState<PhysicSetting>({
+    let [phySetting, setPhysicSetting] = useState<PhysicSettingType>({
         timeStep: 0.5,
         dimensions: 2,
         gravity: -12,
@@ -49,7 +49,7 @@ export default function SimulationPage() {
     const pq = useRef(Priority_queue<PQItem>());
     const curList = useRef<ToEdge[] | null>([]);
     const nodeList = useRef<Map<string, Node>>(new Map());
-    const curNode = useRef<PQItem>([0, START_NODE]);
+    const curNode = useRef<PQItem>([0, graphSetting.START_NODE]);
     const pvEdge = useRef<[string, string]|null>(null);
 
     const resetGraph = () => {
@@ -59,7 +59,7 @@ export default function SimulationPage() {
         pq.current = Priority_queue<PQItem>();
         curList.current = [];
         nodeList.current = new Map();
-        curNode.current = [0, START_NODE];
+        curNode.current = [0, graphSetting.START_NODE];
         pvEdge.current = null;
     }
 
@@ -81,11 +81,13 @@ export default function SimulationPage() {
         graphEdges.forEach((edge) => {
             graph.addLink(edge.u, edge.v, edge.data);
             const listu = adjList.current.get(edge.u) ?? [];
-            const listv = adjList.current.get(edge.v) ?? [];
             listu.push({v: edge.v, data: edge.data});
-            listv.push({v: edge.u, data: edge.data});
             adjList.current.set(edge.u, listu);
-            adjList.current.set(edge.v, listv);
+            if(!graphSetting.DirectedGraph){
+                const listv = adjList.current.get(edge.v) ?? [];
+                listv.push({v: edge.u, data: edge.data});
+                adjList.current.set(edge.v, listv);
+            }
         })
 
         graph.forEachNode((node) => {
@@ -285,7 +287,7 @@ export default function SimulationPage() {
             running = false;
             stopAll();
         }
-    }, [phySetting]);
+    }, [phySetting, graphSetting, graphEdges]);
     
     useEffect(() => {
         if(playing){
@@ -360,15 +362,15 @@ export default function SimulationPage() {
     const startSim = () => {
         if(intervalIdRef.current) return;
         if(!nodeList.current) return;
-        const startPQNode = nodeList.current.get(START_NODE);
+        const startPQNode = nodeList.current.get(graphSetting.START_NODE);
         if(startPQNode) {
             if(!startPQNode.data.vis){
                 startPQNode.data.dist = 0;
-                pq.current.push([0, START_NODE]);
+                pq.current.push([0, graphSetting.START_NODE]);
             }
         }
         nextOperation();
-        intervalIdRef.current = setInterval(nextOperation, SPEED)
+        intervalIdRef.current = setInterval(nextOperation, graphSetting.SPEED);
     }
 
     const stopSim = () => {
@@ -389,9 +391,16 @@ export default function SimulationPage() {
             <div className="absolute justify-center items-center left-1 top-3 flex flex-col bg-slate-50 shadow p-3 rounded-md space-y-1.5">
                 <Button onClick={() => setPlaying(!playing)}>{playing?"Stop":"Play"}</Button>
                 <Button onClick={() => setShowSetting(!showSetting)}>Setting</Button>
-                <Button>Graph</Button>
+                <Button onClick={() => setShowGraphSet(!showGraphSet)}>Graph</Button>
             </div>
-            {showSetting && <GraphSetting init={phySetting} onApply={(next) => { setPhysicSetting(next); setShowSetting(false); }}/>}
+            {showSetting && <PhysicSettings init={phySetting} onApply={(next) => { setPhysicSetting(next); setShowSetting(false); }}/>}
+            {showGraphSet &&
+                <GraphSetting
+                setShowGraphSet={setShowGraphSet}
+                graphSetting={graphSetting}
+                setGraphSetting={setGraphSetting}
+                setGraphEdges={setGraphEdges}/>
+            }
         </div>
     )
 } 

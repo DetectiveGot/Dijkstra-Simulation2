@@ -2,15 +2,15 @@
 import { Card } from "@/ui/card";
 import { Button } from "@/ui/button";
 import { Slider } from "@/ui/slider";
-import { PhysicSetting } from "@/types/graph";
+import { PhysicSettingType } from "@/types/graph";
 import { useState, useEffect } from "react";
 
-export const GraphSetting = ({init, onApply}:{init: PhysicSetting, onApply: (next: PhysicSetting) => void}) => {
-  const [draft, setDraft] = useState<PhysicSetting>(init);
-  const setField = (key: keyof PhysicSetting) => (arr: number[]) => setDraft((d) => ({ ...d, [key]: arr[0] }));
+export const PhysicSettings = ({init, onApply}:{init: PhysicSettingType, onApply: (next: PhysicSettingType) => void}) => {
+  const [draft, setDraft] = useState<PhysicSettingType>(init);
+  const setField = (key: keyof PhysicSettingType) => (arr: number[]) => setDraft((d) => ({ ...d, [key]: arr[0] }));
   return (
       <div className="fixed inset-0 w-full h-full flex justify-center items-center">
-        <Card className="w-96 flex flex-col justify-center items-center gap-y-4 p-6 max-h-[80vh] max-w-[80vw]">
+        <Card className="w-96 flex flex-col justify-center items-center gap-y-4 p-8 max-h-[80vh] max-w-[80vw]">
           <h1 className="text-xl font-bold">Physics Setting</h1>
           <form className="w-full" onSubmit={(e) => {
             e.preventDefault();

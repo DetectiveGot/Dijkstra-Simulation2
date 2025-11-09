@@ -5,7 +5,7 @@ export const getRandom = (l: number, r: number) => {
     return l + Math.floor(Math.random()*(r-l+1));
 }
 
-const make_edge = (u: number, v: number, w: number) => {
+export const make_edge = (u: string, v: string, w: number) => {
     const res = {
         u: String(u),
         v: String(v),
@@ -36,12 +36,12 @@ export const generateRandomGraph = (N: number, M: number): Edge[] => {
         deg[v]--;
         if(deg[v]==1) pq.push(v);
         if(u>v) [u, v] = [v, u];
-        result.push(make_edge(u, v, getRandom(1, 1000)));
+        result.push(make_edge(String(u), String(v), getRandom(1, 1000)));
         mp.add(`${u},${v}`);
     })
     let u = pq.top()!; pq.pop();
     let v = pq.top()!; pq.pop();
-    result.push(make_edge(u, v, getRandom(1, 1000)));
+    result.push(make_edge(String(u), String(v), getRandom(1, 1000)));
     if(u<v) mp.add(`${u},${v}`);
     else mp.add(`${v},${u}`);
 
@@ -52,7 +52,7 @@ export const generateRandomGraph = (N: number, M: number): Edge[] => {
         v = getRandom(u+1, N-1);
         ++it;
         if(mp.has(`${u},${v}`)) continue;
-        result.push(make_edge(u, v, getRandom(1, 1000)));
+        result.push(make_edge(String(u), String(v), getRandom(1, 1000)));
         mp.add(`${u},${v}`);
     }
     // console.log(result);
