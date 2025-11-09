@@ -1,13 +1,13 @@
 'use client'
 
 import createLayout from "ngraph.forcelayout"
-import createGraph from "ngraph.graph"
+import createGraph, { Graph, Node as GNode, Link as GLink } from "ngraph.graph";
 import { useEffect, useRef, useState } from "react"
 import type React from "react"
 import { Button } from "@/ui/button"
 import { generateRandomGraph } from "@/lib/generateGraph"
 import Priority_queue from "@/lib/priority_queue"
-import { Edge, NodeId, Node, ToEdge, PQItem, Coord2d, PhysicSettingType, GraphSettingType } from "@/types/graph"
+import { Edge, NodeId, Node, NodeData, LinkData, ToEdge, PQItem, Coord2d, PhysicSettingType, GraphSettingType } from "@/types/graph"
 import { getRandom } from "@/lib/generateGraph"
 import { PhysicSettings } from "@/components/setting"
 import { GraphSetting } from "@/components/graphSetting"
@@ -22,7 +22,7 @@ const clamp = (val: number, lo: number, hi: number) => {
 }
 
 export default function SimulationPage() {
-    const graphRef = useRef<ReturnType<typeof createGraph>|null>(null);
+    const graphRef = useRef<Graph<NodeData, LinkData> | null>(null);
     const canvasRef = useRef<HTMLCanvasElement|null>(null);
     const layoutRef = useRef<ReturnType<typeof createLayout>|null>(null);
     const isDragging = useRef<boolean>(false);
@@ -236,7 +236,7 @@ export default function SimulationPage() {
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillStyle = "black";
-            ctx.fillText(edge.data.w, (p_from.x+p_to.x)/2, (p_from.y+p_to.y)/2);
+            ctx.fillText(String(edge.data.w), (p_from.x+p_to.x)/2, (p_from.y+p_to.y)/2);
         })
 
         graph.forEachNode((node) => {
@@ -258,7 +258,7 @@ export default function SimulationPage() {
             ctx.fillStyle = "black";
             ctx.fillText(nodeId, node_x, node_y);
             //label distance from start node
-            ctx.fillText(node.data.dist, node_x, node_y-NODE_RADIUS-10);
+            ctx.fillText(String(node.data.dist), node_x, node_y-NODE_RADIUS-10);
         })
     }
 

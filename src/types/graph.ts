@@ -43,6 +43,18 @@ export interface Node {
     }
 }
 
+export interface NodeData {
+    vis: boolean;
+    cur: boolean;
+    dist: number;
+}
+
+export type LinkData = {
+    w: number;
+    cur?: boolean;
+    inPath?: boolean;
+};
+
 export interface Coord2d {
     x: number,
     y: number,
