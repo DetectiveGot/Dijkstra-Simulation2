@@ -39,6 +39,7 @@ export interface Node {
     data: {
         vis: boolean;
         cur: boolean;
+        inPath: boolean;
         dist: number;
     }
 }
@@ -46,6 +47,7 @@ export interface Node {
 export interface NodeData {
     vis: boolean;
     cur: boolean;
+    inPath: boolean;
     dist: number;
 }
 

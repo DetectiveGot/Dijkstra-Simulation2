@@ -11,8 +11,12 @@ import { Edge, NodeId, Node, NodeData, LinkData, ToEdge, PQItem, Coord2d, Physic
 import { getRandom } from "@/lib/generateGraph"
 import { PhysicSettings } from "@/components/setting"
 import { GraphSetting } from "@/components/graphSetting"
+import { Pause, Play, Settings, ChartNetwork, RotateCcw } from "lucide-react";
 
 const NODE_RADIUS = 12;
+const PI = Math.PI;
+const ARROW_DEG = 30;
+const ARROW_LENGTH = 10;
 const MAX_SCALE = 3;
 const MIN_SCALE = 0.8;
 const INF = Infinity;
@@ -26,10 +30,10 @@ export default function SimulationPage() {
     const canvasRef = useRef<HTMLCanvasElement|null>(null);
     const layoutRef = useRef<ReturnType<typeof createLayout>|null>(null);
     const isDragging = useRef<boolean>(false);
-    const camera = useRef({x: 0, y: 0, scale: 1})
+    const camera = useRef({x: 0, y: 0, scale: 1});
     const [showSetting, setShowSetting] = useState(false);
     const [showGraphSet, setShowGraphSet] = useState(false);
-    const [graphSetting, setGraphSetting] = useState<GraphSettingType>({START_NODE: "1", TARGET_NODE: "4", SPEED: 500, DirectedGraph: false});
+    const [graphSetting, setGraphSetting] = useState<GraphSettingType>({START_NODE: "1", TARGET_NODE: "", SPEED: 500, DirectedGraph: false});
 
     let [phySetting, setPhysicSetting] = useState<PhysicSettingType>({
         timeStep: 0.5,
@@ -51,16 +55,47 @@ export default function SimulationPage() {
     const nodeList = useRef<Map<string, Node>>(new Map());
     const curNode = useRef<PQItem>([0, graphSetting.START_NODE]);
     const pvEdge = useRef<[string, string]|null>(null);
+    const paNodeList = useRef<Map<string, string|null>>(new Map());
+    const curNodeBack = useRef<string>(graphSetting.TARGET_NODE);
+    const doneTraveseRef = useRef<boolean|null>(false);
 
-    const resetGraph = () => {
-        stopAll();
-        adjList.current = new Map();
+    const resetGraphState = () => {
+        if(intervalIdRef.current) {
+            clearInterval(intervalIdRef.current);
+            intervalIdRef.current = null;
+        }
         setPlaying(false);
         pq.current = Priority_queue<PQItem>();
         curList.current = [];
         nodeList.current = new Map();
         curNode.current = [0, graphSetting.START_NODE];
         pvEdge.current = null;
+        doneTraveseRef.current = false;
+        paNodeList.current = new Map();
+        curNodeBack.current = graphSetting.TARGET_NODE;
+        const graph = graphRef.current;
+        if(graph){
+            graph.forEachLink((edge) => {
+                edge.data =  {
+                    ...edge.data,
+                    cur: false,
+                    inPath: false,
+                }
+            })
+
+            graph.forEachNode((node) => {
+                const u = String(node.id);
+                const data = {u: u, 
+                    data: {
+                        vis: false,
+                        dist: INF,
+                        cur: false,
+                        inPath: false,
+                    }}
+                nodeList.current.set(u, data);
+                paNodeList.current.set(u, null);
+            })
+        }
     }
 
     const initGraph = () => {
@@ -72,11 +107,13 @@ export default function SimulationPage() {
             console.warn("initGraph layout or graph is null");
             return;
         }
-        resetGraph();
+        resetGraphState();
         const canvas = canvasRef.current;
         const canvasSize = canvas?.getBoundingClientRect() ?? {width: 0, height: 0};
         const cWidth = canvasSize.width;
         const cHeight = canvasSize.height;
+
+        adjList.current = new Map();
 
         graphEdges.forEach((edge) => {
             graph.addLink(edge.u, edge.v, edge.data);
@@ -95,8 +132,9 @@ export default function SimulationPage() {
             const data = {u: u, 
                 data: {
                     vis: false,
-                    dist: Infinity,
-                    cur: false
+                    dist: INF,
+                    cur: false,
+                    inPath: false,
                 }}
             nodeList.current.set(u, data);
             layout.setNodePosition(u, clamp(getRandom(0, cWidth-1), 0, cWidth-1), clamp(getRandom(0, cHeight-1), 0, cHeight-1));
@@ -120,7 +158,7 @@ export default function SimulationPage() {
         if(!layoutRef.current) return null;
         const layout = layoutRef.current;
         const graph = graphRef.current;
-        let minDist = Infinity;
+        let minDist = INF;
         let minNodeId = null;
         graph.forEachNode((node) => {
             const nodeId = String(node.id);
@@ -214,22 +252,58 @@ export default function SimulationPage() {
 
         graph.forEachNode((node) => {
             const u = String(node.id);
-            node.data = nodeList.current.get(u)?.data ?? {dist: Infinity, vis: false, cur: false};
+            node.data = nodeList.current.get(u)?.data ?? {dist: INF, vis: false, inPath: false, cur: false};
         })
+
+        const rotateVector = (x: number, y: number, deg: number) => {
+            const nx = x*Math.cos(deg*PI/180)-y*Math.sin(deg*PI/180);
+            const ny = x*Math.sin(deg*PI/180)+y*Math.cos(deg*PI/180);
+            return {x: nx, y: ny};
+        }
+
+        const drawArrow = (edge: GLink, p_from: {x: number, y: number}, p_to: {x: number, y: number}) => {
+            if(doneTraveseRef.current && edge.data.inPath) ctx.strokeStyle = "green";
+            else if(edge.data.cur) ctx.strokeStyle = "orange";
+            else ctx.strokeStyle = "black"
+            if(graphSetting.DirectedGraph){
+                const ux = p_to.x-p_from.x;
+                const uy = p_to.y-p_from.y;
+                const vecSize = Math.hypot(ux, uy);
+                if(vecSize===0) return;
+                const oneUx = ux/vecSize;
+                const oneUy = uy/vecSize;
+                const vx = oneUx*ARROW_LENGTH;
+                const vy = oneUy*ARROW_LENGTH;
+                const V1 = rotateVector(vx, vy, ARROW_DEG);
+                const V2 = rotateVector(vx, vy, -ARROW_DEG);
+                const P1 = {x: p_to.x-oneUx*NODE_RADIUS, y: p_to.y-oneUy*NODE_RADIUS};
+                const P2 = {x: P1.x-V1.x, y: P1.y-V1.y};
+                const P3 = {x: P1.x-V2.x, y: P1.y-V2.y};
+                ctx.beginPath();
+                ctx.moveTo(p_from.x, p_from.y);
+                ctx.lineTo(P1.x, P1.y);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(P1.x, P1.y);
+                ctx.lineTo(P2.x, P2.y);
+                ctx.lineTo(P3.x, P3.y);
+                ctx.closePath();
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.moveTo(p_from.x, p_from.y);
+                ctx.lineTo(p_to.x, p_to.y);
+                ctx.stroke();
+            }
+        }
 
         graph.forEachLink((edge) => {
             const edgeId = edge.id;
             const {fromId, toId} = edge;
             const p_from = layout.getNodePosition(fromId);
             const p_to = layout.getNodePosition(toId);
-            //draw linear line edge
-            ctx.beginPath();
-            ctx.moveTo(p_from.x, p_from.y);
-            ctx.lineTo(p_to.x, p_to.y);
-            if(edge.data.cur) ctx.strokeStyle = "orange";
-            else if(edge.data.inPath) ctx.strokeStyle = "green";
-            else ctx.strokeStyle = "black"
-            ctx.stroke();
+            drawArrow(edge, p_from, p_to);
 
             //edge weight label
             ctx.font = "16px Arial";
@@ -245,7 +319,8 @@ export default function SimulationPage() {
             //draw circle
             ctx.beginPath();
             ctx.arc(node_x, node_y, NODE_RADIUS, 0, Math.PI*2);
-            if(node.data.cur) ctx.strokeStyle = "orange";
+            if(doneTraveseRef.current && node.data.inPath) ctx.strokeStyle = "green";
+            else if(node.data.cur) ctx.strokeStyle = "orange";
             else if(node.data.vis) ctx.strokeStyle = "blue";
             else ctx.strokeStyle = "black";
             ctx.fillStyle = "white";
@@ -298,9 +373,9 @@ export default function SimulationPage() {
         }
     }, [playing])
 
-    const updateNode = (node: string, val: number) => {
+    const updateNode = (fromNode: string, toNode: string, val: number) => {
         if(!nodeList.current) return;
-        const nodeData = nodeList.current.get(node);
+        const nodeData = nodeList.current.get(toNode);
         if(!nodeData) return;
         if(!pq.current){
             console.error("pq is not found");
@@ -308,7 +383,8 @@ export default function SimulationPage() {
         }
         if(!nodeData.data.vis && nodeData.data.dist>val){
             nodeData.data.dist = val;
-            pq.current.push([val, node]);
+            pq.current.push([val, toNode]);
+            if(paNodeList.current) paNodeList.current.set(toNode, fromNode);
         }
     }
 
@@ -325,11 +401,26 @@ export default function SimulationPage() {
 
     const nextOperation = () => {
         if(!curList.current) return;
-        const [dist, u] = curNode.current;
+
         if(pvEdge.current){
             updateEdge(pvEdge.current[0], pvEdge.current[1], false, false);
             pvEdge.current = null;
         }
+
+        if(doneTraveseRef.current && curNodeBack.current) {
+            const parentNode = paNodeList.current.get(curNodeBack.current);
+            if(!parentNode) return;
+            const graph = graphRef.current;
+            if(!graph) return;
+            const curNodeData = nodeList.current.get(parentNode);
+            const edge = graph.getLink(parentNode, curNodeBack.current) || graph.getLink(curNodeBack.current, parentNode);
+            if(curNodeData) curNodeData.data.inPath = true;
+            if(edge) edge.data.inPath = true;
+            curNodeBack.current = parentNode;
+            return;
+        }
+
+        const [dist, u] = curNode.current;
         const pv_dt = nodeList.current.get(u);
         if(pv_dt) pv_dt.data.cur = false;
         if(curList.current.length === 0){
@@ -344,7 +435,17 @@ export default function SimulationPage() {
                     break;
                 }
             }
-            if(!U) return;
+            if(!U || U==graphSetting.TARGET_NODE) {
+                if(U) {
+                    doneTraveseRef.current = true;
+                    const uData = nodeList.current.get(U);
+                    if(uData) uData.data.inPath = true;
+                    curNodeBack.current = U;
+                    curList.current = [];
+                    // console.log(curNodeBack);
+                }
+                return;
+            }
             if(dt) {
                 dt.data.vis = true;
                 dt.data.cur = true;
@@ -355,7 +456,7 @@ export default function SimulationPage() {
             updateEdge(u, to.v, true, false);
             pvEdge.current = [u, to.v];
             curList.current.pop();
-            updateNode(to.v, dist+(to.data.w ?? 0));
+            updateNode(u, to.v, dist+(to.data.w ?? 0));
         }
     }
 
@@ -388,10 +489,11 @@ export default function SimulationPage() {
             onPointerMove={onPointerMove} 
             onPointerUp={onPointerUp} 
             className="w-full h-full shadow"></canvas>
-            <div className="absolute justify-center items-center left-1 top-3 flex flex-col bg-slate-50 shadow p-3 rounded-md space-y-1.5">
-                <Button onClick={() => setPlaying(!playing)}>{playing?"Stop":"Play"}</Button>
-                <Button onClick={() => setShowSetting(!showSetting)}>Setting</Button>
-                <Button onClick={() => setShowGraphSet(!showGraphSet)}>Graph</Button>
+            <div className="absolute justify-center items-center left-1 top-1.5 flex flex-col bg-white shadow p-3 rounded-md space-y-1.5">
+                <Button variant={"option"} size={"option"} onClick={() => setPlaying(!playing)}>{playing?<Pause className="w-5 h-5 stroke-black" aria-hidden/>:<Play className="w-5 h-5 stroke-black" aria-hidden="true"/>}</Button>
+                <Button variant={"option"} size={"option"} onClick={() => setShowSetting(!showSetting)}><Settings className="w-5 h-5 stroke-black" aria-hidden/></Button>
+                <Button variant={"option"} size={"option"} onClick={() => setShowGraphSet(!showGraphSet)}><ChartNetwork className="w-5 h-5 stroke-black" aria-hidden/></Button>
+                <Button variant={"option"} size={"option"} onClick={resetGraphState}><RotateCcw className="w-5 h-5 stroke-black" aria-hidden/></Button>
             </div>
             {showSetting && <PhysicSettings init={phySetting} onApply={(next) => { setPhysicSetting(next); setShowSetting(false); }}/>}
             {showGraphSet &&

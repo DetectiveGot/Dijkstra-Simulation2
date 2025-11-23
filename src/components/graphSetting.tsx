@@ -25,8 +25,7 @@ const toGraph = (text: string, directedGraph: boolean) => {
         nodes.add(data[0]);
         nodes.add(data[1]);
     }
-    const sz = nodes.size
-    return {map, sz};
+    return {map, nodes};
 }
 
 export const GraphSetting = ({setShowGraphSet, graphSetting, setGraphSetting, setGraphEdges}:
@@ -42,12 +41,12 @@ export const GraphSetting = ({setShowGraphSet, graphSetting, setGraphSetting, se
         <div className="fixed inset-0 w-full h-full flex justify-center items-center">
             <Card className="w-96 flex flex-col justify-center items-center gap-y-4 p-8 max-h-[80vh] max-w-[80vw]">
                 <h1 className="text-xl font-bold">Graph Setting</h1>
-                <form className="w-full" onSubmit={(e) => {
+                <form className="w-full" autoComplete="off" onSubmit={(e) => {
                         e.preventDefault();
                         if(textAreaRef.current) {
                             const res = toGraph(textAreaRef.current.value, draft.current.DirectedGraph);
                             const graphEdges: Edge[] = Array.from(res.map.values()).map(({ u, v, w }) => make_edge(u, v, w));
-                            if(res.sz<=30){
+                            if(res.nodes.size<=30 && res.nodes.has(draft.current.START_NODE) && res.nodes.has(draft.current.TARGET_NODE)){
                                 setGraphEdges(graphEdges);
                                 setGraphSetting({...draft.current });
                                 setShowGraphSet(false);
@@ -56,7 +55,7 @@ export const GraphSetting = ({setShowGraphSet, graphSetting, setGraphSetting, se
                 }}>
                     <div className="w-full space-y-3">
                         <Checkbox title={"Directed Graph"} onCheckedChange={(v) => draft.current.DirectedGraph = Boolean(v)}/>
-                        <Slider min={500} max={5000} step={500} defaultValue={[graphSetting.SPEED]} onValueChange={(ar) => draft.current.SPEED = ar[0]} title={"Speed (ms)"}/>
+                        <Slider min={200} max={2000} step={300} defaultValue={[graphSetting.SPEED]} onValueChange={(ar) => draft.current.SPEED = ar[0]} title={"Speed (ms)"}/>
                         <div className="h-auto w-auto">
                             <label htmlFor="startNode" className="text-sm">Start Node: </label>
                             <input onChange={(e) => draft.current.START_NODE = e.target.value} id="startNode" type='text' className="shadow border border-stone-800 rounded-sm w-full"/>
@@ -65,7 +64,13 @@ export const GraphSetting = ({setShowGraphSet, graphSetting, setGraphSetting, se
                             <label htmlFor="endNode" className="text-sm">End Node: </label>
                             <input onChange={(e) => draft.current.TARGET_NODE = e.target.value} id="endNode" type='text' className="shadow border border-stone-800 rounded-sm w-full"/>
                         </div>
-                        <textarea ref={textAreaRef} className="block w-full min-h-20 shadow max-h-72 border border-b-stone-800 rounded-md"></textarea>
+                        <label htmlFor="inputGraph" className="text-sm">Graph: </label>
+                        <p className="text-xs text-stone-400">Input in u v w format. u: fromNode, v: toNode w: weight</p>
+                        <textarea 
+                        id="inputGraph" 
+                        ref={textAreaRef} 
+                        className="block w-full min-h-20 shadow max-h-72 border border-b-stone-800 rounded-md" 
+                        defaultValue={"1 2 3\n2 3 4"}/>
                     </div>
                     <Button variant={"primary"} size={"lg"} type="submit" className="w-full mt-4">Apply</Button>
                 </form>
