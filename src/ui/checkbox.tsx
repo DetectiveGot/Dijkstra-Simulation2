@@ -11,7 +11,7 @@ export const Checkbox = React.forwardRef<CheckboxRef, CheckboxProps>(
     ({className, title, ...props}, ref) => {
         const [isChecked, setIsChecked] = React.useState(true);
         return (
-            <div className="h-auto w-auto">
+            <div className="h-auto w-auto flex gap-1">
                 <label className="text-sm leading-none">{title}: </label>
                 <CheckboxPrimitive.Root ref={ref} className={cn("inline-flex justify-center items-center h-4 w-4 overflow-hidden rounded-sm border align-middle border-stone-800 data-[state=checked]:bg-black", className)} {...props}>
                     <CheckboxPrimitive.Indicator>
