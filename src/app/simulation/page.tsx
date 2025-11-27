@@ -45,7 +45,7 @@ export default function SimulationPage() {
         dragCoefficient: 0.9,
     });
 
-    const [graphEdges, setGraphEdges] = useState<Edge[]>(() => generateRandomGraph(5, 4));
+    const [graphEdges, setGraphEdges] = useState<Edge[]>(() => generateRandomGraph(5, 4, false));
     const adjList = useRef<Map<string, ToEdge[]>>(new Map());
     const [playing, setPlaying] = useState<boolean>(false);
     const rafRef = useRef<number | null>(null);

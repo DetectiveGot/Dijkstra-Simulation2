@@ -94,7 +94,7 @@ export const GraphSetting = ({setShowGraphSet, graphSetting, setGraphSetting, se
                                     const N = randomSetting.current.nodes;
                                     const M = randomSetting.current.edges;
                                     if(M>(N*(N-1))/2 || M<N-1) return;
-                                    const edges = generateRandomGraph(N, M);
+                                    const edges = generateRandomGraph(N, M, directGraph);
                                     const randomText = edges.map((edge) => `${edge.u} ${edge.v} ${edge.data.w}`).join('\n');
                                     setGraphText(randomText);
                                     setGraphEdges(edges);
