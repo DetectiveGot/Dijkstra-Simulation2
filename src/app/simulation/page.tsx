@@ -12,6 +12,7 @@ import { getRandom } from "@/lib/generateGraph"
 import { PhysicSettings } from "@/components/setting"
 import { GraphSetting } from "@/components/graphSetting"
 import { Pause, Play, Settings, ChartNetwork, RotateCcw } from "lucide-react";
+import Navbar from "@/components/navbar";
 
 const NODE_RADIUS = 12;
 const PI = Math.PI;
@@ -30,7 +31,7 @@ export default function SimulationPage() {
     const canvasRef = useRef<HTMLCanvasElement|null>(null);
     const layoutRef = useRef<ReturnType<typeof createLayout>|null>(null);
     const isDragging = useRef<boolean>(false);
-    const camera = useRef({x: 0, y: 0, scale: 1});
+    // const camera = useRef({x: 0, y: 0, scale: 1});
     const [showSetting, setShowSetting] = useState(false);
     const [showGraphSet, setShowGraphSet] = useState(false);
     const [graphSetting, setGraphSetting] = useState<GraphSettingType>({START_NODE: "1", TARGET_NODE: "", SPEED: 500, DirectedGraph: false});
@@ -58,6 +59,34 @@ export default function SimulationPage() {
     const paNodeList = useRef<Map<string, string|null>>(new Map());
     const curNodeBack = useRef<string>(graphSetting.TARGET_NODE);
     const doneTraveseRef = useRef<boolean|null>(false);
+    const pointerPos = useRef<Map<number, [number, number]>>(new Map());
+    // const lastPinchDist = useRef<number|null>(null);
+    // const lastCenterPoint = useRef<[number, number]|null>(null);
+    const moveRef = useRef<{
+        camera: {
+            x: number,
+            y: number,
+            scale: number
+        }, 
+        worldPoint: {
+            x: number, 
+            y: number
+        }, 
+        dist: number
+    }|null>(
+        {
+            camera: {
+                x: 0,
+                y: 0,
+                scale: 1
+            }, 
+            worldPoint: {
+                x: 0, 
+                y: 0
+            },
+            dist: 0
+        }
+    );
 
     const resetGraphState = () => {
         if(intervalIdRef.current) {
@@ -142,17 +171,6 @@ export default function SimulationPage() {
     }
     const lastPos = useRef<Coord2d|null>({x: 0, y: 0});
     const closestNodeId = useRef<NodeId|null>(null);
-
-    const toWorldCoord = (pos: Coord2d): (Coord2d|null) => {
-        if(!canvasRef.current) return null;
-        const rect = canvasRef.current.getBoundingClientRect();
-        const mx = pos.x-rect.left;
-        const my = pos.y-rect.top;
-        const wx = (mx-camera.current.x)/camera.current.scale;
-        const wy = (my-camera.current.y)/camera.current.scale;
-        return {x: wx, y: wy}
-    }
-
     const closestPair = (wPos: Coord2d) => {
         if(!graphRef.current) return null;
         if(!layoutRef.current) return null;
@@ -174,65 +192,143 @@ export default function SimulationPage() {
     //left 1
     //right 2
     //mid 4
+    const toWorldCoord = (point: [number, number]) => {
+        if(!moveRef.current) return;
+        if(!canvasRef.current) return;
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        const camera = moveRef.current.camera ?? {x: 0, y: 0, scale: 1};
+        const x = point[0]-rect.left;
+        const y = point[1]-rect.top;
+        const wx = (x-camera.x)/camera.scale;
+        const wy = (y-camera.y)/camera.scale;
+        return [wx, wy];
+    }
+
+    const getCenterPoint = (map: Map<number, [number, number]>): [number, number] => {
+        let cx = 0;
+        let cy = 0;
+        const sz = map.size;
+        if(sz===0) return [0, 0];
+        map.forEach(([x, y]) => {
+            cx+=x;
+            cy+=y;
+        });
+        return [cx/sz, cy/sz];
+    }
+
     const onPointerDown: React.PointerEventHandler<HTMLCanvasElement> = (e) => {
+        if(!pointerPos.current) return;
+        if(!moveRef.current) return;
         isDragging.current = true;
-        const isMouse = e.pointerType === "mouse";
-        if(!isMouse || (isMouse && !!(e.buttons&1))){
-            const wPos = toWorldCoord({x: e.clientX, y: e.clientY});
-            if(wPos) closestNodeId.current = closestPair(wPos);
-        }
-        lastPos.current = { x: e.clientX, y: e.clientY };
+        pointerPos.current.set(e.pointerId, [e.clientX, e.clientY]);
         e.currentTarget.setPointerCapture(e.pointerId);
+        const [cx, cy] = getCenterPoint(pointerPos.current);
+        const point = toWorldCoord([cx, cy]);
+        if(!point) return;
+        const [wx, wy] = point;
+        closestNodeId.current = closestPair({x: wx, y: wy});
+        // moveRef.current.worldPoint = {x: cx, y: cy};
+        // moveRef.current.centerPoint
+        moveRef.current = {
+            ...moveRef.current,
+            worldPoint: {x: wx, y: wy},
+        }
+        const pointerSize = pointerPos.current.size;
+        if(pointerSize>=2) {
+            let dist = 0;
+            pointerPos.current.forEach(([xx, yy]) => {
+                dist += Math.hypot(cx-xx, cy-yy);
+            });
+            dist/=pointerSize;
+            moveRef.current.dist = dist||1;
+        }
+        // console.log(wx, wy, cx, cy);
     }
 
     const onPointerMove: React.PointerEventHandler<HTMLCanvasElement> = (e) => {
-        if (!isDragging.current) return;
-        if(!lastPos.current) return;
-        const isMouse = e.pointerType === "mouse";
-        const dx = e.clientX - lastPos.current.x;
-        const dy = e.clientY - lastPos.current.y;
-        if((!isMouse && !closestNodeId.current) || (isMouse && !!(e.buttons&2))){
-            camera.current = { ...camera.current, x: camera.current.x + dx, y: camera.current.y + dy}
-        }
-        if(!isMouse || (isMouse && !!(e.buttons&1))) {
-            if(closestNodeId.current && layoutRef.current && graphRef.current) {
-                const layout = layoutRef.current;
-                const graph = graphRef.current;
-                const wpos = toWorldCoord({x: e.clientX, y: e.clientY});
-                if(wpos) {
-                    layout.pinNode(graph.getNode(closestNodeId.current)!, true);
-                    layout.setNodePosition(closestNodeId.current, wpos.x, wpos.y)
-                }
+        if(!isDragging.current) return;
+        if(!pointerPos.current) return;
+        if(!moveRef.current) return;
+        if(!canvasRef.current) return;
+        const isMouse = e.pointerType==="mouse";
+        pointerPos.current.set(e.pointerId, [e.clientX, e.clientY]);
+        const rect = canvasRef.current.getBoundingClientRect();
+        const touchNum = pointerPos.current.size;
+        const [cx, cy] = getCenterPoint(pointerPos.current);
+        let {camera, worldPoint} = moveRef.current;
+        const x = cx-rect.left;
+        const y = cy-rect.top;
+        if(closestNodeId.current) {
+            const wPoint = toWorldCoord([e.clientX, e.clientY]);
+            const layout = layoutRef.current;
+            const graph = graphRef.current;
+            if(wPoint && layout) {
+                layout.setNodePosition(closestNodeId.current, wPoint[0], wPoint[1]);
+                const node = graph?.getNode(closestNodeId.current);
+                if(node) layout.pinNode(node, true);
             }
+            return;
         }
-        
-        lastPos.current = { x: e.clientX, y: e.clientY };
+        if(touchNum>=2) {
+            let dist = 0;
+            pointerPos.current.forEach(([xx, yy]) => {
+                dist+=Math.hypot(xx-cx, yy-cy);
+            });
+            dist/=touchNum;
+            if(moveRef.current.dist===0) {
+                moveRef.current.dist = dist;
+                return;
+            }
+            let newScale = camera.scale;
+            const cal = dist/moveRef.current.dist;
+            newScale = clamp(newScale*cal, MIN_SCALE, MAX_SCALE);
+            camera = {
+                scale: newScale,
+                x: x-worldPoint.x*newScale,
+                y: y-worldPoint.y*newScale
+            };
+            moveRef.current.dist = dist || 1;
+        } else {
+            camera = {...camera, x: x-worldPoint.x*camera.scale, y: y-worldPoint.y*camera.scale};
+        }
+        moveRef.current.camera = camera;
+        // console.log(moveRef.current, touchNum);
     }
 
     const onPointerUp: React.PointerEventHandler<HTMLCanvasElement> = (e) => {
-        isDragging.current = false;
         e.currentTarget.releasePointerCapture(e.pointerId);
+        if(!pointerPos.current) return;
+        pointerPos.current.delete(e.pointerId);
+        if(pointerPos.current.size===0) isDragging.current = false;
+        if(!moveRef.current) return;
+        const [cx, cy] = getCenterPoint(pointerPos.current);
+        const point = toWorldCoord([cx, cy]);
+        if(point) moveRef.current.worldPoint = {x: point[0], y: point[1]};
         const graph = graphRef.current;
         const layout = layoutRef.current;
-        if(graph && layout && closestNodeId.current){
-            layout.pinNode(graph.getNode(closestNodeId.current)!, false);
-            closestNodeId.current = null;
-        }
+        if(!graph || !layout || !closestNodeId.current) return;
+        const node = graph?.getNode(closestNodeId.current);
+        if(node) layout.pinNode(node, false);
+        closestNodeId.current = null;
     }
 
     const onWheel: React.WheelEventHandler<HTMLCanvasElement> = (e) => {
-        const dy = e.deltaY;
         if(!canvasRef.current) return;
+        if(!moveRef.current) return;
         const rect = canvasRef.current.getBoundingClientRect();
         const mx = e.clientX-rect.left;
         const my = e.clientY-rect.top;
-        const wx = (mx-camera.current.x)/camera.current.scale;
-        const wy = (my-camera.current.y)/camera.current.scale;
-        let newScale = camera.current.scale;
-        if(dy<0) newScale = camera.current.scale*1.1;
-        else newScale = camera.current.scale*0.9;
-        newScale = clamp(newScale, MIN_SCALE, MAX_SCALE);
-        camera.current = {x: mx-wx*newScale, y: my-wy*newScale, scale: newScale};
+        const wPoint = toWorldCoord([e.clientX, e.clientY]);
+        if(!wPoint) return;
+        const [wx, wy] = wPoint;
+        const camera = moveRef.current.camera;
+        let newScale = camera.scale;
+        // if(dy<0) newScale*=1.1;
+        // else newScale*=0.9;
+        newScale*=Math.exp(-e.deltaY*0.001);
+        newScale= clamp(newScale, MIN_SCALE, MAX_SCALE);
+        moveRef.current.camera = {x: mx-wx*newScale, y: my-wy*newScale, scale: newScale};
     }
 
     const draw = () => {
@@ -247,8 +343,10 @@ export default function SimulationPage() {
         const rect = canvas.getBoundingClientRect();
         canvas.width = rect.width*dpr;
         canvas.height = rect.height*dpr;
+        
+        const camera = moveRef.current?.camera ?? {x: 0, y: 0, scale: 1};
 
-        ctx.setTransform(dpr * camera.current.scale, 0, 0, dpr * camera.current.scale, camera.current.x * dpr, camera.current.y * dpr);
+        ctx.setTransform(dpr * camera.scale, 0, 0, dpr * camera.scale, camera.x * dpr, camera.y * dpr);
 
         graph.forEachNode((node) => {
             const u = String(node.id);
@@ -264,6 +362,7 @@ export default function SimulationPage() {
         const drawArrow = (edge: GLink, p_from: {x: number, y: number}, p_to: {x: number, y: number}) => {
             if(doneTraveseRef.current && edge.data.inPath) ctx.strokeStyle = "green";
             else if(edge.data.cur) ctx.strokeStyle = "orange";
+            else if(edge.data.vis) ctx.strokeStyle = "blue";
             else ctx.strokeStyle = "black"
             if(graphSetting.DirectedGraph){
                 const ux = p_to.x-p_from.x;
@@ -480,29 +579,32 @@ export default function SimulationPage() {
         intervalIdRef.current = null;
     }
     return (
-        <div className="relative h-full flex">
-            <canvas ref={canvasRef} 
-            style={{touchAction:'none'}} 
-            onContextMenu={(e) => e.preventDefault()}
-            onWheel={onWheel} 
-            onPointerDown={onPointerDown} 
-            onPointerMove={onPointerMove} 
-            onPointerUp={onPointerUp} 
-            className="w-full h-full shadow"></canvas>
-            <div className="absolute justify-center items-center left-1 top-1.5 flex flex-col bg-white shadow p-3 rounded-md space-y-1.5">
-                <Button variant={"option"} size={"option"} onClick={() => setPlaying(!playing)}>{playing?<Pause className="w-5 h-5 stroke-black" aria-hidden/>:<Play className="w-5 h-5 stroke-black" aria-hidden="true"/>}</Button>
-                <Button variant={"option"} size={"option"} onClick={() => setShowSetting(!showSetting)}><Settings className="w-5 h-5 stroke-black" aria-hidden/></Button>
-                <Button variant={"option"} size={"option"} onClick={() => setShowGraphSet(!showGraphSet)}><ChartNetwork className="w-5 h-5 stroke-black" aria-hidden/></Button>
-                <Button variant={"option"} size={"option"} onClick={resetGraphState}><RotateCcw className="w-5 h-5 stroke-black" aria-hidden/></Button>
+        <main className="h-dvh flex flex-col overflow-hidden">
+            <Navbar/>
+            <div className="relative flex-1 flex w-full">
+                <canvas ref={canvasRef} 
+                style={{touchAction:'none'}} 
+                onContextMenu={(e) => e.preventDefault()}
+                onWheel={onWheel} 
+                onPointerDown={onPointerDown} 
+                onPointerMove={onPointerMove} 
+                onPointerUp={onPointerUp} 
+                className="block w-full flex-1 shadow"></canvas>
+                <div className="absolute justify-center items-center left-1 top-1.5 flex flex-col bg-white shadow p-3 rounded-md space-y-1.5">
+                    <Button variant={"option"} size={"option"} onClick={() => setPlaying(!playing)}>{playing?<Pause className="w-5 h-5 stroke-black" aria-hidden/>:<Play className="w-5 h-5 stroke-black" aria-hidden="true"/>}</Button>
+                    <Button variant={"option"} size={"option"} onClick={() => setShowSetting(!showSetting)}><Settings className="w-5 h-5 stroke-black" aria-hidden/></Button>
+                    <Button variant={"option"} size={"option"} onClick={() => setShowGraphSet(!showGraphSet)}><ChartNetwork className="w-5 h-5 stroke-black" aria-hidden/></Button>
+                    <Button variant={"option"} size={"option"} onClick={resetGraphState}><RotateCcw className="w-5 h-5 stroke-black" aria-hidden/></Button>
+                </div>
+                {showSetting && <PhysicSettings init={phySetting} onApply={(next) => { setPhysicSetting(next); setShowSetting(false); }}/>}
+                {showGraphSet &&
+                    <GraphSetting
+                    setShowGraphSet={setShowGraphSet}
+                    graphSetting={graphSetting}
+                    setGraphSetting={setGraphSetting}
+                    setGraphEdges={setGraphEdges}/>
+                }
             </div>
-            {showSetting && <PhysicSettings init={phySetting} onApply={(next) => { setPhysicSetting(next); setShowSetting(false); }}/>}
-            {showGraphSet &&
-                <GraphSetting
-                setShowGraphSet={setShowGraphSet}
-                graphSetting={graphSetting}
-                setGraphSetting={setGraphSetting}
-                setGraphEdges={setGraphEdges}/>
-            }
-        </div>
+        </main>
     )
 } 

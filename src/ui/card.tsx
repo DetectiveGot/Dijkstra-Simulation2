@@ -1,32 +1,37 @@
-import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 import React, { Children, forwardRef } from "react";
 
-const cardVariants = cva(
-    "shadow z-50 rounded-2xl bg-white", 
-    {
-        variants: {
-            variant: {
-                primary: "",
-            },
-            size: {
-                sm: "p-3",
-                md: "p-8",
-            }
-        },
-        defaultVariants: {
-            variant: "primary",
-            size: "sm"
-        },
-    }
-)
-
-interface CardProps extends React.HtmlHTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants>{}
-
-const Card = forwardRef<HTMLDivElement, CardProps>(({className, variant, size, ...props}, ref) => {
-    return (
-        <div ref={ref} className={cn(cardVariants({variant, size}), className)} {...props} />
-    )
+const Card = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({className, ...props}, ref) => {
+    return <div ref={ref} {...props} 
+        className={cn(className,
+            "flex flex-col justify-center shadow z-50 rounded-2xl bg-white p-3 max-w-xs md:max-w-md"
+        )}
+    />
 })
 
-export {Card, cardVariants}
+
+const CardHeader = forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(({className, ...props}, ref) => {
+    return <h1 ref={ref} {...props} 
+        className={cn(className,
+            "sm:text-md text-sm font-bold"
+        )}
+    />
+})
+
+const CardSection = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({className, ...props}, ref) => {
+    return <div ref={ref} {...props} 
+        className={cn(className,
+            "py-1"
+        )}
+    />
+})
+
+const CardSectionHeader = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({className, ...props}, ref) => {
+    return <div ref={ref} {...props} 
+        className={cn(className,
+            "sm:text-sm text-xs font-bold"
+        )}
+    />
+})
+
+export {Card, CardHeader, CardSection, CardSectionHeader}

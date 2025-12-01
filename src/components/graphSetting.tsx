@@ -1,5 +1,5 @@
 "use client";
-import { Card } from "@/ui/card";
+import { Card, CardHeader, CardSection, CardSectionHeader } from "@/ui/card";
 import { Button } from "@/ui/button";
 import { Slider } from "@/ui/slider";
 import { GraphSettingType, Edge } from "@/types/graph";
@@ -47,8 +47,8 @@ export const GraphSetting = ({setShowGraphSet, graphSetting, setGraphSetting, se
 
     return (
         <div className="fixed inset-0 w-full h-full flex justify-center items-center">
-            <Card className="w-96 flex flex-col justify-center items-center gap-y-4 p-8 max-h-[80vh] max-w-[80vw]">
-                <h1 className="text-xl font-bold underline">Graph Setting</h1>
+            <Card className="w-96 flex flex-col justify-center items-center gap-y-4 p-8">
+                <CardHeader className="text-xl font-bold underline">Graph Setting</CardHeader>
                 <form className="w-full" autoComplete="off" onSubmit={(e) => {
                         e.preventDefault();
                         if(textAreaRef.current) {
@@ -61,72 +61,72 @@ export const GraphSetting = ({setShowGraphSet, graphSetting, setGraphSetting, se
                             }
                         }
                 }}>
-                    <div className="w-full divide-y divide-stone-800">
-                        <section className="py-2">
-                            <h1 className="text-sm font-bold">Setting</h1>
-                            <div className="flex flex-wrap gap-3 justify-between">
-                                <Checkbox title={"Directed Graph"} checked={directGraph} onCheckedChange={(v) => {
-                                    setDirectGraph(Boolean(v));
-                                }}/>
-                                <Checkbox title={"Target Node"} checked={hasTargetNode} onCheckedChange={(v) => {
-                                    setHasTargetNode(Boolean(v));
-                                }}/>
-                            </div>
-                            <Slider min={200} max={2000} step={300} defaultValue={[graphSetting.SPEED]} onValueChange={(ar) => setGraphSpeed(ar[0])} title={"Speed (ms)"}/>
-                        </section>
-                        <section className="py-2">
-                            <h1 className="text-sm font-bold">Random Graph</h1>
-                            <div className="space-y-1 flex flex-col justify-center">
-                                <div className="h-auto w-auto">
-                                    <label htmlFor="nodesNum" className="text-sm">Number of nodes (N): </label>
-                                    <input id="nodesNum" type="number" min={1} max={30} defaultValue={randomSetting.current.nodes} className="shadow border border-stone-800 rounded-sm w-full" onChange={(e) => {
-                                        randomSetting.current.nodes = Number(e.currentTarget.value);
-                                    }}/>
-                                </div>
-                                <div className="h-auto w-auto">
-                                    <label htmlFor="edgesNum" className="text-sm">Number of edges (E; N-1 &le; E &le; N*(N-1)/2): </label>
-                                    <input id="edgesNum" type="number" min={randomSetting.current.nodes-1} max={(randomSetting.current.nodes*(randomSetting.current.nodes-1))/2} defaultValue={randomSetting.current.edges} className="shadow border border-stone-800 rounded-sm w-full" onChange={(e) => {
-                                        randomSetting.current.edges = Number(e.currentTarget.value);
-                                    }}/>
-                                </div>
-                                <Button variant={"primary"} size={"sm"} onClick={(e) => {
-                                    e.preventDefault();
-                                    const N = randomSetting.current.nodes;
-                                    const M = randomSetting.current.edges;
-                                    if(M>(N*(N-1))/2 || M<N-1) return;
-                                    const edges = generateRandomGraph(N, M, directGraph);
-                                    const randomText = edges.map((edge) => `${edge.u} ${edge.v} ${edge.data.w}`).join('\n');
-                                    setGraphText(randomText);
-                                    setGraphEdges(edges);
-                                    setStartNode("0");
-                                    if(hasTargetNode) setTargetNode(String(getRandom(0, N-1)));
-                                }}>Random Graph</Button>
-                            </div>
-                        </section>
-                        <section className="py-2">
-                            <h1 className="text-sm font-bold">Input Graph</h1>
+                    <CardSection>
+                        <CardSectionHeader>Setting</CardSectionHeader>
+                        <div className="flex flex-wrap gap-3 justify-between">
+                            <Checkbox title={"Directed Graph"} checked={directGraph} onCheckedChange={(v) => {
+                                setDirectGraph(Boolean(v));
+                            }}/>
+                            <Checkbox title={"Target Node"} checked={hasTargetNode} onCheckedChange={(v) => {
+                                setHasTargetNode(Boolean(v));
+                            }}/>
+                        </div>
+                        <Slider min={200} max={2000} step={300} defaultValue={[graphSetting.SPEED]} onValueChange={(ar) => setGraphSpeed(ar[0])} title={"Speed (ms)"}/>
+                    </CardSection>
+                    <CardSection>
+                        <CardSectionHeader>Random Graph</CardSectionHeader>
+                        <div className="space-y-1 flex flex-col justify-center">
                             <div className="h-auto w-auto">
-                                <label htmlFor="startNode" className="text-sm">Start Node: </label>
-                                <input onChange={(e) => setStartNode(e.target.value)} value={startNode} id="startNode" type='text' className="shadow border border-stone-800 rounded-sm w-full"/>
+                                <label htmlFor="nodesNum" className="text-sm">Number of nodes (N): </label>
+                                <input id="nodesNum" type="number" min={1} max={30} defaultValue={randomSetting.current.nodes} className="shadow border border-stone-800 rounded-sm w-full" onChange={(e) => {
+                                    randomSetting.current.nodes = Number(e.currentTarget.value);
+                                }}/>
                             </div>
                             <div className="h-auto w-auto">
-                                <label htmlFor="endNode" className="text-sm">End Node: </label>
-                                <input onChange={(e) => setTargetNode(e.target.value)} value={targetNode} id="endNode" type='text' className="shadow border border-stone-800 rounded-sm w-full" disabled={!hasTargetNode}/>
+                                <label htmlFor="edgesNum" className="text-sm">Number of edges (E; N-1 &le; E &le; N*(N-1)/2): </label>
+                                <input id="edgesNum" type="number" min={randomSetting.current.nodes-1} max={(randomSetting.current.nodes*(randomSetting.current.nodes-1))/2} defaultValue={randomSetting.current.edges} className="shadow border border-stone-800 rounded-sm w-full" onChange={(e) => {
+                                    randomSetting.current.edges = Number(e.currentTarget.value);
+                                }}/>
                             </div>
-                            <label htmlFor="inputGraph" className="text-sm">Graph: </label>
-                            <p className="text-xs text-stone-400">Input in u v w format. u: fromNode, v: toNode w: weight</p>
-                            <textarea 
-                            id="inputGraph" 
-                            ref={textAreaRef}
-                            onChange={(e) => setGraphText(e.target.value)}
-                            value={graphText}
-                            className="block w-full min-h-20 shadow max-h-72 border border-b-stone-800 rounded-md p-1" 
-                            />
-                        </section>
-                    </div>
-                    <Button variant={"primary"} size={"lg"} type="submit" className="w-full mt-4">Apply</Button>
+                            <Button variant={"primary"} size={"sm"} onClick={(e) => {
+                                e.preventDefault();
+                                const N = randomSetting.current.nodes;
+                                const M = randomSetting.current.edges;
+                                if(M>(N*(N-1))/2 || M<N-1) return;
+                                const edges = generateRandomGraph(N, M, directGraph);
+                                const randomText = edges.map((edge) => `${edge.u} ${edge.v} ${edge.data.w}`).join('\n');
+                                setGraphText(randomText);
+                                setGraphEdges(edges);
+                                setStartNode("0");
+                                if(hasTargetNode) setTargetNode(String(getRandom(0, N-1)));
+                            }}>Random Graph</Button>
+                        </div>
+                    </CardSection>
+                    <CardSection>
+                        <CardSectionHeader>Input Graph</CardSectionHeader>
+                        <div className="h-auto w-auto">
+                            <label htmlFor="startNode" className="text-sm">Start Node: </label>
+                            <input onChange={(e) => setStartNode(e.target.value)} value={startNode} id="startNode" type='text' className="shadow border border-stone-800 rounded-sm w-full"/>
+                        </div>
+                        <div className="h-auto w-auto">
+                            <label htmlFor="endNode" className="text-sm">End Node: </label>
+                            <input onChange={(e) => setTargetNode(e.target.value)} value={targetNode} id="endNode" type='text' className="shadow border border-stone-800 rounded-sm w-full" disabled={!hasTargetNode}/>
+                        </div>
+                        <label htmlFor="inputGraph" className="text-sm">Graph: </label>
+                        <p className="text-xs text-stone-400">Input in u v w format. u: fromNode, v: toNode w: weight</p>
+                        <textarea 
+                        id="inputGraph" 
+                        ref={textAreaRef}
+                        onChange={(e) => setGraphText(e.target.value)}
+                        value={graphText}
+                        className="block w-full min-h-20 shadow max-h-72 border border-b-stone-800 rounded-md p-1" 
+                        />
+                    </CardSection>
+                    <CardSection>
+                        <Button variant={"primary"} size={"lg"} type="submit" className="w-full">Apply</Button>
+                        <p className="text-xs text-stone-400">Note: There must be no more than 30 unique nodes. Make sure start and end nodes are correct.</p>
+                    </CardSection>
                 </form>
-                <p className="text-xs text-stone-400">Note: There must be no more than 30 unique nodes. Make sure start and end nodes are correct.</p>
             </Card>
         </div>
     );
