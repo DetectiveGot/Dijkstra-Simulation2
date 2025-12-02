@@ -7,7 +7,7 @@ import type React from "react"
 import { Button } from "@/ui/button"
 import { generateRandomGraph } from "@/lib/generateGraph"
 import Priority_queue from "@/lib/priority_queue"
-import { Edge, NodeId, Node, NodeData, LinkData, ToEdge, PQItem, Coord2d, PhysicSettingType, GraphSettingType } from "@/types/graph"
+import { Edge, Node, NodeData, LinkData, ToEdge, PhysicSettingType, GraphSettingType } from "@/types/graph"
 import { getRandom } from "@/lib/generateGraph"
 import { PhysicSettings } from "@/components/setting"
 import { GraphSetting } from "@/components/graphSetting"
@@ -31,12 +31,11 @@ export default function SimulationPage() {
     const canvasRef = useRef<HTMLCanvasElement|null>(null);
     const layoutRef = useRef<ReturnType<typeof createLayout>|null>(null);
     const isDragging = useRef<boolean>(false);
-    // const camera = useRef({x: 0, y: 0, scale: 1});
     const [showSetting, setShowSetting] = useState(false);
     const [showGraphSet, setShowGraphSet] = useState(false);
     const [graphSetting, setGraphSetting] = useState<GraphSettingType>({START_NODE: "1", TARGET_NODE: "", SPEED: 500, DirectedGraph: false});
 
-    let [phySetting, setPhysicSetting] = useState<PhysicSettingType>({
+    const [phySetting, setPhysicSetting] = useState<PhysicSettingType>({
         timeStep: 0.5,
         dimensions: 2,
         gravity: -12,
@@ -51,17 +50,16 @@ export default function SimulationPage() {
     const [playing, setPlaying] = useState<boolean>(false);
     const rafRef = useRef<number | null>(null);
     const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const pq = useRef(Priority_queue<PQItem>());
+    const pq = useRef(Priority_queue<[number, string]>());
     const curList = useRef<ToEdge[] | null>([]);
     const nodeList = useRef<Map<string, Node>>(new Map());
-    const curNode = useRef<PQItem>([0, graphSetting.START_NODE]);
-    const pvEdge = useRef<[string, string]|null>(null);
+    const curNode = useRef<[number, string]>([0, graphSetting.START_NODE]);
     const paNodeList = useRef<Map<string, string|null>>(new Map());
     const curNodeBack = useRef<string>(graphSetting.TARGET_NODE);
-    const doneTraveseRef = useRef<boolean|null>(false);
+    const doneTraveseRef = useRef<boolean>(false);
+    const doneAllTreverseRef = useRef<boolean>(false);
     const pointerPos = useRef<Map<number, [number, number]>>(new Map());
-    // const lastPinchDist = useRef<number|null>(null);
-    // const lastCenterPoint = useRef<[number, number]|null>(null);
+    const pvEdge = useRef<GLink|null>(null);
     const moveRef = useRef<{
         camera: {
             x: number,
@@ -88,18 +86,19 @@ export default function SimulationPage() {
         }
     );
 
-    const resetGraphState = () => {
+    const initGraphState = () => {
         if(intervalIdRef.current) {
             clearInterval(intervalIdRef.current);
             intervalIdRef.current = null;
         }
         setPlaying(false);
-        pq.current = Priority_queue<PQItem>();
+        pq.current = Priority_queue<[number, string]>();
         curList.current = [];
         nodeList.current = new Map();
         curNode.current = [0, graphSetting.START_NODE];
         pvEdge.current = null;
         doneTraveseRef.current = false;
+        doneAllTreverseRef.current = false;
         paNodeList.current = new Map();
         curNodeBack.current = graphSetting.TARGET_NODE;
         const graph = graphRef.current;
@@ -109,6 +108,7 @@ export default function SimulationPage() {
                     ...edge.data,
                     cur: false,
                     inPath: false,
+                    vis: false,
                 }
             })
 
@@ -136,7 +136,7 @@ export default function SimulationPage() {
             console.warn("initGraph layout or graph is null");
             return;
         }
-        resetGraphState();
+        initGraphState();
         const canvas = canvasRef.current;
         const canvasSize = canvas?.getBoundingClientRect() ?? {width: 0, height: 0};
         const cWidth = canvasSize.width;
@@ -169,9 +169,8 @@ export default function SimulationPage() {
             layout.setNodePosition(u, clamp(getRandom(0, cWidth-1), 0, cWidth-1), clamp(getRandom(0, cHeight-1), 0, cHeight-1));
         })
     }
-    const lastPos = useRef<Coord2d|null>({x: 0, y: 0});
-    const closestNodeId = useRef<NodeId|null>(null);
-    const closestPair = (wPos: Coord2d) => {
+    const closestNodeId = useRef<string|null>(null);
+    const closestPair = (wPos: [number, number]) => {
         if(!graphRef.current) return null;
         if(!layoutRef.current) return null;
         const layout = layoutRef.current;
@@ -181,7 +180,7 @@ export default function SimulationPage() {
         graph.forEachNode((node) => {
             const nodeId = String(node.id);
             const pos = layout.getNodePosition(nodeId);
-            const cal = (wPos.x-pos.x)*(wPos.x-pos.x) + (wPos.y-pos.y)*(wPos.y-pos.y);
+            const cal = (wPos[0]-pos.x)*(wPos[0]-pos.x) + (wPos[1]-pos.y)*(wPos[1]-pos.y);
             if(cal<=NODE_RADIUS*NODE_RADIUS && cal<minDist){
                 minDist = cal;
                 minNodeId = node.id;
@@ -227,9 +226,7 @@ export default function SimulationPage() {
         const point = toWorldCoord([cx, cy]);
         if(!point) return;
         const [wx, wy] = point;
-        closestNodeId.current = closestPair({x: wx, y: wy});
-        // moveRef.current.worldPoint = {x: cx, y: cy};
-        // moveRef.current.centerPoint
+        closestNodeId.current = closestPair([wx, wy]);
         moveRef.current = {
             ...moveRef.current,
             worldPoint: {x: wx, y: wy},
@@ -243,7 +240,6 @@ export default function SimulationPage() {
             dist/=pointerSize;
             moveRef.current.dist = dist||1;
         }
-        // console.log(wx, wy, cx, cy);
     }
 
     const onPointerMove: React.PointerEventHandler<HTMLCanvasElement> = (e) => {
@@ -251,7 +247,6 @@ export default function SimulationPage() {
         if(!pointerPos.current) return;
         if(!moveRef.current) return;
         if(!canvasRef.current) return;
-        const isMouse = e.pointerType==="mouse";
         pointerPos.current.set(e.pointerId, [e.clientX, e.clientY]);
         const rect = canvasRef.current.getBoundingClientRect();
         const touchNum = pointerPos.current.size;
@@ -270,6 +265,7 @@ export default function SimulationPage() {
             }
             return;
         }
+        let newScale = camera.scale;
         if(touchNum>=2) {
             let dist = 0;
             pointerPos.current.forEach(([xx, yy]) => {
@@ -278,22 +274,14 @@ export default function SimulationPage() {
             dist/=touchNum;
             if(moveRef.current.dist===0) {
                 moveRef.current.dist = dist;
-                return;
+            } else {
+                const cal = dist/moveRef.current.dist;
+                newScale = clamp(newScale*cal, MIN_SCALE, MAX_SCALE);
+                moveRef.current.dist = dist || 1;
             }
-            let newScale = camera.scale;
-            const cal = dist/moveRef.current.dist;
-            newScale = clamp(newScale*cal, MIN_SCALE, MAX_SCALE);
-            camera = {
-                scale: newScale,
-                x: x-worldPoint.x*newScale,
-                y: y-worldPoint.y*newScale
-            };
-            moveRef.current.dist = dist || 1;
-        } else {
-            camera = {...camera, x: x-worldPoint.x*camera.scale, y: y-worldPoint.y*camera.scale};
         }
+        camera = {scale: newScale, x: x-worldPoint.x*newScale, y: y-worldPoint.y*newScale};
         moveRef.current.camera = camera;
-        // console.log(moveRef.current, touchNum);
     }
 
     const onPointerUp: React.PointerEventHandler<HTMLCanvasElement> = (e) => {
@@ -324,8 +312,6 @@ export default function SimulationPage() {
         const [wx, wy] = wPoint;
         const camera = moveRef.current.camera;
         let newScale = camera.scale;
-        // if(dy<0) newScale*=1.1;
-        // else newScale*=0.9;
         newScale*=Math.exp(-e.deltaY*0.001);
         newScale= clamp(newScale, MIN_SCALE, MAX_SCALE);
         moveRef.current.camera = {x: mx-wx*newScale, y: my-wy*newScale, scale: newScale};
@@ -361,7 +347,7 @@ export default function SimulationPage() {
 
         const drawArrow = (edge: GLink, p_from: {x: number, y: number}, p_to: {x: number, y: number}) => {
             if(doneTraveseRef.current && edge.data.inPath) ctx.strokeStyle = "green";
-            else if(edge.data.cur) ctx.strokeStyle = "orange";
+            else if(!doneTraveseRef.current && edge.data.cur) ctx.strokeStyle = "orange";
             else if(edge.data.vis) ctx.strokeStyle = "blue";
             else ctx.strokeStyle = "black"
             if(graphSetting.DirectedGraph){
@@ -398,7 +384,6 @@ export default function SimulationPage() {
         }
 
         graph.forEachLink((edge) => {
-            const edgeId = edge.id;
             const {fromId, toId} = edge;
             const p_from = layout.getNodePosition(fromId);
             const p_to = layout.getNodePosition(toId);
@@ -419,7 +404,7 @@ export default function SimulationPage() {
             ctx.beginPath();
             ctx.arc(node_x, node_y, NODE_RADIUS, 0, Math.PI*2);
             if(doneTraveseRef.current && node.data.inPath) ctx.strokeStyle = "green";
-            else if(node.data.cur) ctx.strokeStyle = "orange";
+            else if(!doneTraveseRef.current && node.data.cur) ctx.strokeStyle = "orange";
             else if(node.data.vis) ctx.strokeStyle = "blue";
             else ctx.strokeStyle = "black";
             ctx.fillStyle = "white";
@@ -464,6 +449,7 @@ export default function SimulationPage() {
     }, [phySetting, graphSetting, graphEdges]);
     
     useEffect(() => {
+        if(doneAllTreverseRef.current) return;
         if(playing){
             startSim();
             return () => stopSim();
@@ -494,31 +480,32 @@ export default function SimulationPage() {
         if(!fromNode || !toNode) return;
         const edge = graph.getLink(fromNode, toNode) || graph.getLink(toNode, fromNode);
         if(!edge) return;
+        pvEdge.current = edge;
         edge.data.cur = cur;
-        edge.data.inPath = inPath;
+        if(inPath) edge.data.inPath = inPath;
+        edge.data.vis = true;
     }
-
+    
     const nextOperation = () => {
         if(!curList.current) return;
-
-        if(pvEdge.current){
-            updateEdge(pvEdge.current[0], pvEdge.current[1], false, false);
-            pvEdge.current = null;
-        }
-
-        if(doneTraveseRef.current && curNodeBack.current) {
+        if(graphSetting.TARGET_NODE && doneTraveseRef.current) {
+            if(!curNodeBack.current) return;
             const parentNode = paNodeList.current.get(curNodeBack.current);
-            if(!parentNode) return;
-            const graph = graphRef.current;
-            if(!graph) return;
-            const curNodeData = nodeList.current.get(parentNode);
-            const edge = graph.getLink(parentNode, curNodeBack.current) || graph.getLink(curNodeBack.current, parentNode);
-            if(curNodeData) curNodeData.data.inPath = true;
-            if(edge) edge.data.inPath = true;
+            if(!parentNode) {
+                doneAllTreverseRef.current = true;
+                stopSim();
+                return;
+            }
+            updateEdge(parentNode, curNodeBack.current, false, true);
+            const paData = nodeList.current.get(parentNode);
+            if(paData) paData.data.inPath = true;
             curNodeBack.current = parentNode;
             return;
         }
 
+        if(pvEdge.current) pvEdge.current.data.cur = false;
+        if(doneTraveseRef.current) return;
+        
         const [dist, u] = curNode.current;
         const pv_dt = nodeList.current.get(u);
         if(pv_dt) pv_dt.data.cur = false;
@@ -526,8 +513,10 @@ export default function SimulationPage() {
             let dt = null;
             let U = null;
             while(!pq.current.empty()){
-                curNode.current = pq.current.top()!;
+                const top = pq.current.top();
                 pq.current.pop();
+                if(top) curNode.current = top;
+                else continue;
                 dt = nodeList.current.get(curNode.current[1]);
                 if(!(dt?.data.vis)) {
                     U = curNode.current[1];
@@ -541,7 +530,9 @@ export default function SimulationPage() {
                     if(uData) uData.data.inPath = true;
                     curNodeBack.current = U;
                     curList.current = [];
-                    // console.log(curNodeBack);
+                } else {
+                    doneAllTreverseRef.current = true;
+                    stopSim();
                 }
                 return;
             }
@@ -553,7 +544,6 @@ export default function SimulationPage() {
         } else {
             const to = curList.current[curList.current.length-1];
             updateEdge(u, to.v, true, false);
-            pvEdge.current = [u, to.v];
             curList.current.pop();
             updateNode(u, to.v, dist+(to.data.w ?? 0));
         }
@@ -562,6 +552,7 @@ export default function SimulationPage() {
     const startSim = () => {
         if(intervalIdRef.current) return;
         if(!nodeList.current) return;
+        if(doneAllTreverseRef.current) return;
         const startPQNode = nodeList.current.get(graphSetting.START_NODE);
         if(startPQNode) {
             if(!startPQNode.data.vis){
@@ -594,7 +585,7 @@ export default function SimulationPage() {
                     <Button variant={"option"} size={"option"} onClick={() => setPlaying(!playing)}>{playing?<Pause className="w-5 h-5 stroke-black" aria-hidden/>:<Play className="w-5 h-5 stroke-black" aria-hidden="true"/>}</Button>
                     <Button variant={"option"} size={"option"} onClick={() => setShowSetting(!showSetting)}><Settings className="w-5 h-5 stroke-black" aria-hidden/></Button>
                     <Button variant={"option"} size={"option"} onClick={() => setShowGraphSet(!showGraphSet)}><ChartNetwork className="w-5 h-5 stroke-black" aria-hidden/></Button>
-                    <Button variant={"option"} size={"option"} onClick={resetGraphState}><RotateCcw className="w-5 h-5 stroke-black" aria-hidden/></Button>
+                    <Button variant={"option"} size={"option"} onClick={initGraphState}><RotateCcw className="w-5 h-5 stroke-black" aria-hidden/></Button>
                 </div>
                 {showSetting && <PhysicSettings init={phySetting} onApply={(next) => { setPhysicSetting(next); setShowSetting(false); }}/>}
                 {showGraphSet &&

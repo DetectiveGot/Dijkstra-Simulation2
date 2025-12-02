@@ -1,5 +1,3 @@
-export type NodeId = string;
-export type PQItem = [pq_dist: number, pq_u: NodeId]
 export type PhysicSettingType = {
     timeStep: number;
     dimensions: number;
@@ -18,8 +16,8 @@ export type GraphSettingType = {
 }
 
 export interface Edge {
-    u: NodeId;
-    v: NodeId;
+    u: string;
+    v: string;
     data: {
         w: number,
         cur: boolean
@@ -28,14 +26,14 @@ export interface Edge {
 }
 
 export interface ToEdge {
-    v: NodeId;
+    v: string;
     data: {
         w: number,
     }
 }
 
 export interface Node {
-    u: NodeId;
+    u: string;
     data: {
         vis: boolean;
         cur: boolean;
@@ -55,9 +53,5 @@ export type LinkData = {
     w: number;
     cur?: boolean;
     inPath?: boolean;
+    vis?: boolean
 };
-
-export interface Coord2d {
-    x: number,
-    y: number,
-}

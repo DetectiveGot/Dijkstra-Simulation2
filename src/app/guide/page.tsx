@@ -2,7 +2,7 @@ import Navbar from "@/components/navbar";
 
 export default function AboutPage() {
     return (
-        <>
+        <main className="h-full w-full flex flex-col items-center">
             <Navbar/>
             <main className="p-12 max-w-5xl flex flex-col justify-center gap-y-6">
                 <section className="flex flex-col justify-center gap-y-6">
@@ -32,6 +32,6 @@ export default function AboutPage() {
                     <p className="text-xs">Drag Coefficient: Acts like air resistance; the higher the value, the faster the graph settles after dragging.</p>
                 </section>
             </main>
-        </>
+        </main>
     )
 }
