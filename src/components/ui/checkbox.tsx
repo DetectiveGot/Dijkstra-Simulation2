@@ -9,7 +9,6 @@ type CheckboxRef = React.ElementRef<typeof CheckboxPrimitive.Root>;
 
 export const Checkbox = React.forwardRef<CheckboxRef, CheckboxProps>(
     ({className, title, ...props}, ref) => {
-        const [isChecked, setIsChecked] = React.useState(true);
         return (
             <div className="h-auto w-auto flex gap-1">
                 <label className="text-sm leading-none">{title}: </label>

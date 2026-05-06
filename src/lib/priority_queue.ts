@@ -8,7 +8,8 @@ export default function Priority_queue<T>(){
 
     const down = (i: number) => {
         while(true){
-            let l = 2*i+1, r = 2*i+2, best = i, n = heap.length;
+            const l = 2*i+1, r = 2*i+2, n = heap.length;
+            let best = i;
             if(l<n && heap[l]<heap[best]) best = l;
             if(r<n && heap[r]<heap[best]) best = r;
             if(best==i) break;
@@ -21,7 +22,7 @@ export default function Priority_queue<T>(){
 
     const up = (i: number) => {
         while(i>0){
-            let pa = Math.ceil((i-1)/2);
+            const pa = Math.ceil((i-1)/2);
             if(heap[i]<heap[pa]){
                 [heap[i], heap[pa]] = [heap[pa], heap[i]];
                 i = pa;

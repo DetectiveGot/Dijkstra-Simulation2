@@ -1,5 +1,4 @@
-import Image from "next/image";
-import { Button } from "@/ui/button";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export default function Home() {
@@ -7,8 +6,8 @@ export default function Home() {
     <main className="min-h-dvh min-w-dvw h-full w-full flex flex-col gap-4 justify-center items-center">
       <h1 className='text-3xl'>Dijkstra Simulation</h1>
       <div className="w-full flex flex-col justify-center items-center space-y-1">
-        <Link href='/simulation'><Button variant={"primary"} size={"primary"}>Start</Button></Link>
-        <Link href='/guide'><Button variant={"primary"} size={"primary"}>Guide</Button></Link>
+        <Link href='/simulation'><Button>Start</Button></Link>
+        <Link href='/guide'><Button>Guide</Button></Link>
       </div>
     </main>
   );

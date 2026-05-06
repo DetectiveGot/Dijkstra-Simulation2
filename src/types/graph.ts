@@ -10,9 +10,8 @@ export type PhysicSettingType = {
 
 export type GraphSettingType = {
     START_NODE: string,
-    TARGET_NODE: string,
+    TARGET_NODE: string | null,
     DirectedGraph: boolean,
-    SPEED: number
 }
 
 export interface Edge {

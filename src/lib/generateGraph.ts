@@ -1,5 +1,5 @@
 import Priority_queue from "./priority_queue";
-import { Edge, Node } from "@/types/graph";
+import { Edge } from "@/types/graph";
 
 export const getRandom = (l: number, r: number) => {
     return l + Math.floor(Math.random()*(r-l+1));
@@ -19,7 +19,7 @@ export const make_edge = (u: string, v: string, w: number) => {
 }
 
 export const generateRandomGraph = (N: number, M: number, isDirectGraph: boolean): Edge[] => {
-    let result: Edge[] = [];
+    const result: Edge[] = [];
     const mp = new Set<string>();
 
     if(isDirectGraph) {
@@ -35,9 +35,9 @@ export const generateRandomGraph = (N: number, M: number, isDirectGraph: boolean
         }
     }
 
-    let deg: number[] = new Array<number>(N).fill(1);
+    const deg: number[] = new Array<number>(N).fill(1);
     const pq = Priority_queue<number>();
-    let prufer: number[] = [];
+    const prufer: number[] = [];
     for(let i=0;i<N-2;i++){
         prufer.push(getRandom(0, N-1));
         deg[prufer[i]]++;
@@ -70,7 +70,6 @@ export const generateRandomGraph = (N: number, M: number, isDirectGraph: boolean
         result.push(make_edge(String(u), String(v), getRandom(1, 1000)));
         mp.add(`${u},${v}`);
     }
-    // console.log(result);
     
     return result;
 }

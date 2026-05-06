@@ -4,7 +4,6 @@ import createLayout from "ngraph.forcelayout"
 import createGraph, { Graph, Node as GNode, Link as GLink } from "ngraph.graph";
 import { useEffect, useRef, useState } from "react"
 import type React from "react"
-import { Button } from "@/ui/button"
 import { generateRandomGraph } from "@/lib/generateGraph"
 import Priority_queue from "@/lib/priority_queue"
 import { Edge, Node, NodeData, LinkData, ToEdge, PhysicSettingType, GraphSettingType } from "@/types/graph"
@@ -13,6 +12,7 @@ import { PhysicSettings } from "@/components/setting"
 import { GraphSetting } from "@/components/graphSetting"
 import { Pause, Play, Settings, ChartNetwork, RotateCcw } from "lucide-react";
 import Navbar from "@/components/navbar";
+import { Button } from "@/components/ui/button";
 
 const NODE_RADIUS = 12;
 const PI = Math.PI;
@@ -21,6 +21,7 @@ const ARROW_LENGTH = 10;
 const MAX_SCALE = 3;
 const MIN_SCALE = 0.8;
 const INF = Infinity;
+const SPEED = 500;
 
 const clamp = (val: number, lo: number, hi: number) => {
     return Math.min(Math.max(val, lo), hi);
@@ -33,7 +34,7 @@ export default function SimulationPage() {
     const isDragging = useRef<boolean>(false);
     const [showSetting, setShowSetting] = useState(false);
     const [showGraphSet, setShowGraphSet] = useState(false);
-    const [graphSetting, setGraphSetting] = useState<GraphSettingType>({START_NODE: "1", TARGET_NODE: "", SPEED: 500, DirectedGraph: false});
+    const [graphSetting, setGraphSetting] = useState<GraphSettingType>({START_NODE: "1", TARGET_NODE: "", DirectedGraph: false});
 
     const [phySetting, setPhysicSetting] = useState<PhysicSettingType>({
         timeStep: 0.5,
@@ -561,7 +562,7 @@ export default function SimulationPage() {
             }
         }
         nextOperation();
-        intervalIdRef.current = setInterval(nextOperation, graphSetting.SPEED);
+        intervalIdRef.current = setInterval(nextOperation, SPEED);
     }
 
     const stopSim = () => {
@@ -574,26 +575,28 @@ export default function SimulationPage() {
             <Navbar/>
             <div className="relative flex-1 flex w-full">
                 <canvas ref={canvasRef} 
-                style={{touchAction:'none'}} 
-                onContextMenu={(e) => e.preventDefault()}
-                onWheel={onWheel} 
-                onPointerDown={onPointerDown} 
-                onPointerMove={onPointerMove} 
-                onPointerUp={onPointerUp} 
-                className="block w-full flex-1 shadow"></canvas>
-                <div className="absolute justify-center items-center left-1 top-1.5 flex flex-col bg-white shadow p-3 rounded-md space-y-1.5">
-                    <Button variant={"option"} size={"option"} onClick={() => setPlaying(!playing)}>{playing?<Pause className="w-5 h-5 stroke-black" aria-hidden/>:<Play className="w-5 h-5 stroke-black" aria-hidden="true"/>}</Button>
-                    <Button variant={"option"} size={"option"} onClick={() => setShowSetting(!showSetting)}><Settings className="w-5 h-5 stroke-black" aria-hidden/></Button>
-                    <Button variant={"option"} size={"option"} onClick={() => setShowGraphSet(!showGraphSet)}><ChartNetwork className="w-5 h-5 stroke-black" aria-hidden/></Button>
-                    <Button variant={"option"} size={"option"} onClick={initGraphState}><RotateCcw className="w-5 h-5 stroke-black" aria-hidden/></Button>
+                    style={{touchAction:'none'}} 
+                    onContextMenu={(e) => e.preventDefault()}
+                    onWheel={onWheel} 
+                    onPointerDown={onPointerDown} 
+                    onPointerMove={onPointerMove} 
+                    onPointerUp={onPointerUp} 
+                    className="block w-full flex-1 shadow">
+                </canvas>
+                <div className="absolute justify-center items-center left-1 top-1.5 flex flex-col bg-white border p-3 rounded-md space-y-1.5">
+                    <Button variant={'outline'} size={'icon-lg'} onClick={() => setPlaying(!playing)}>{playing?<Pause className="size-5" aria-hidden/>:<Play className="size-5" aria-hidden="true"/>}</Button>
+                    <Button variant={'outline'} size={'icon-lg'} onClick={() => setShowSetting(!showSetting)}><Settings className="size-5" aria-hidden/></Button>
+                    <Button variant={'outline'} size={'icon-lg'} onClick={() => setShowGraphSet(!showGraphSet)}><ChartNetwork className="size-5" aria-hidden/></Button>
+                    <Button variant={'outline'} size={'icon-lg'} onClick={initGraphState}><RotateCcw className="size-5" aria-hidden/></Button>
                 </div>
-                {showSetting && <PhysicSettings init={phySetting} onApply={(next) => { setPhysicSetting(next); setShowSetting(false); }}/>}
+                {showSetting && <PhysicSettings init={phySetting} onClose={() => setShowSetting(false)}onApply={(next) => { setPhysicSetting(next); setShowSetting(false); }}/>}
                 {showGraphSet &&
                     <GraphSetting
-                    setShowGraphSet={setShowGraphSet}
-                    graphSetting={graphSetting}
-                    setGraphSetting={setGraphSetting}
-                    setGraphEdges={setGraphEdges}/>
+                        graphSetting={graphSetting}
+                        setGraphSetting={setGraphSetting}
+                        setGraphEdges={setGraphEdges}
+                        onClose={() => setShowGraphSet(false)}
+                    />
                 }
             </div>
         </main>
