@@ -46,7 +46,7 @@ export default function SimulationPage() {
         dragCoefficient: 0.9,
     });
 
-    const [graphEdges, setGraphEdges] = useState<Edge[]>(() => generateRandomGraph(5, 4, false));
+    const [graphEdges, setGraphEdges] = useState<Edge[]|null>(() => generateRandomGraph(5, 4, false));
     const adjList = useRef<Map<string, ToEdge[]>>(new Map());
     const [playing, setPlaying] = useState<boolean>(false);
     const rafRef = useRef<number | null>(null);
@@ -144,7 +144,7 @@ export default function SimulationPage() {
         const cHeight = canvasSize.height;
 
         adjList.current = new Map();
-
+        if(!graphEdges) return;
         graphEdges.forEach((edge) => {
             graph.addLink(edge.u, edge.v, edge.data);
             const listu = adjList.current.get(edge.u) ?? [];
@@ -592,7 +592,6 @@ export default function SimulationPage() {
                 {showSetting && <PhysicSettings init={phySetting} onClose={() => setShowSetting(false)}onApply={(next) => { setPhysicSetting(next); setShowSetting(false); }}/>}
                 {showGraphSet &&
                     <GraphSetting
-                        graphSetting={graphSetting}
                         setGraphSetting={setGraphSetting}
                         setGraphEdges={setGraphEdges}
                         onClose={() => setShowGraphSet(false)}

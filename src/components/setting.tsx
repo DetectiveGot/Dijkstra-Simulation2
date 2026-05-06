@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { PhysicSettingType } from "@/types/graph";
 import { useState } from "react";
+import { toast } from "sonner";
 
 type SettingParams = {
   init: PhysicSettingType,
@@ -34,6 +35,7 @@ export const PhysicSettings = ({init, onApply, onClose}:SettingParams) => {
           </CardSection>
           <Button type="submit" className="w-full mt-4" onClick={() => {
             onApply(draft);
+            toast.success("Apply successfully!");
           }}>Apply</Button>
         </Card>
       </div>

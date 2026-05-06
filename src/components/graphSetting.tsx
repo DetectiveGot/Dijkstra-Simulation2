@@ -6,6 +6,7 @@ import { make_edge } from "@/lib/generateGraph";
 import React, {useState} from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { generateRandomGraph } from "@/lib/generateGraph";
+import { toast } from "sonner";
 
 const toGraph = (text: string, directedGraph: boolean) => {
     const lines = text.trim().split(/\r?\n/);
@@ -29,9 +30,8 @@ const toGraph = (text: string, directedGraph: boolean) => {
 }
 
 type SettingParams = {
-    graphSetting: GraphSettingType, 
     setGraphSetting: React.Dispatch<React.SetStateAction<GraphSettingType>>,
-    setGraphEdges: React.Dispatch<React.SetStateAction<Edge[]>>
+    setGraphEdges: React.Dispatch<React.SetStateAction<Edge[]|null>>
     onClose: () => void,
 }
 
@@ -40,8 +40,10 @@ type RandomSetting = {
     edgeCount: number|null,
 };
 
+const MAX_NODES = 20;
+const MAX_EDGES = 40;
+
 export const GraphSetting = ({
-        graphSetting, 
         setGraphSetting, 
         setGraphEdges,
         onClose
@@ -53,17 +55,37 @@ export const GraphSetting = ({
 
     const handleApply = (formData:FormData) => {
         const isDirect = Boolean(formData.get("directGraph")) ?? false;
+        const startNode = String(formData.get("startNode")) ?? null;
         const newGraphSetting = {
-            START_NODE: String(formData.get("startNode"))?? "1",
+            START_NODE: startNode,
             TARGET_NODE: String(formData.get("endNode")) ?? null,
             DirectedGraph: isDirect
         }
-        setGraphSetting(newGraphSetting);
-
         const rawEdges = String(formData.get("rawEdges"));
         const {map, nodes} = toGraph(rawEdges, isDirect);
-        setGraphEdges(map.values().toArray().map((v) => make_edge(v.u, v.v, v.w)));
+        if(nodes.size>MAX_NODES || nodes.size<2) {
+            toast.error(`Allow number of nodes range is 2 to ${MAX_NODES}`, {
+                description: "This node doesn't exists in your graph",
+            });
+            return;
+        }
+        if(!startNode || !nodes.has(startNode)) {
+            toast.error("Invalid Start Node", {
+                description: "This node doesn't exists in your graph",
+            });
+            return;
+        }
+        const edgeArr = map.values().toArray();
+        if(edgeArr.length>MAX_EDGES || edgeArr.length<2) {
+            toast.error(`Allow number of nodes range is ${(randomSetting.nodeCount||1)-1} to ${MAX_EDGES}`, {
+                description: "This node doesn't exists in your graph",
+            });
+            return;
+        }
+        setGraphEdges(edgeArr.map((v) => make_edge(v.u, v.v, v.w)));
         map.values().toArray().map((v) => make_edge(v.u, v.v, v.w))
+        setGraphSetting(newGraphSetting);
+        toast.success("Apply successfully");
         onClose();
     }
 
@@ -71,8 +93,15 @@ export const GraphSetting = ({
         if(!randomSetting.nodeCount || !randomSetting.edgeCount) return;
         const {nodeCount, edgeCount} = randomSetting;
         const edgeData = generateRandomGraph(nodeCount, edgeCount, isDirect);
+        if(!edgeData) {
+            toast.error(`Generate random took too long to process`, {
+                description: "Try something smaller",
+            });
+            return;
+        }
         const edgeText = edgeData.map(({u, v, data: {w}}) => `${u} ${v} ${w}`).join('\n');
         setTextGraph(edgeText);
+        toast.success("Generate random edges successfully");
     }
 
     return (
@@ -99,17 +128,17 @@ export const GraphSetting = ({
                         </div>
                     </CardSection>
                     <CardSection className="w-full">
-                        <CardSectionHeader>Generate Random Input</CardSectionHeader>
+                        <CardSectionHeader>Generate Random Connected Graph Input</CardSectionHeader>
                         <div className="space-y-1 flex flex-col justify-center">
                             <div className="h-auto w-auto">
-                                <label htmlFor="nodesNum" className="text-sm">Number of nodes (N):</label>
-                                <input id="nodesNum" name='nodeCount' type="number" className="p-1 border rounded-sm w-full"
+                                <label htmlFor="nodesNum" className="text-sm">Number of nodes (2-{MAX_NODES}):</label>
+                                <input id="nodesNum" name='nodeCount' type="number" min={2} max={MAX_NODES} className="p-1 border rounded-sm w-full"
                                     onChange={(e) => setRandomSetting((val) => ({...val, nodeCount: Number(e.target.value)}))}
                                 />
                             </div>
                             <div className="h-auto w-auto">
-                                <label htmlFor="edgesNum" className="text-sm">Number of edges (E):</label>
-                                <input id="edgesNum" name='edgeCount' type="number" className="p-1 border rounded-sm w-full"
+                                <label htmlFor="edgesNum" className="text-sm">Number of edges ({Math.min(MAX_EDGES, (randomSetting.nodeCount||1)-1)}-{MAX_EDGES}):</label>
+                                <input id="edgesNum" name='edgeCount' type="number" min={Math.min(MAX_EDGES, (randomSetting.nodeCount||1)-1)} max={MAX_EDGES} className="p-1 border rounded-sm w-full"
                                     onChange={(e) => setRandomSetting((val) => ({...val, edgeCount: Number(e.target.value)}))}
                                 />
                             </div>

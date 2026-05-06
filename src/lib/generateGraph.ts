@@ -18,7 +18,7 @@ export const make_edge = (u: string, v: string, w: number) => {
     return res;
 }
 
-export const generateRandomGraph = (N: number, M: number, isDirectGraph: boolean): Edge[] => {
+export const generateRandomGraph = (N: number, M: number, isDirectGraph: boolean): Edge[]|null => {
     const result: Edge[] = [];
     const mp = new Set<string>();
 
@@ -62,7 +62,8 @@ export const generateRandomGraph = (N: number, M: number, isDirectGraph: boolean
 
     M = Math.min(N*(N-1)/2, M);
     let it = 0;
-    while(result.length<M && it<=1000){
+    while(result.length<M){
+        if(it>1000) return null;
         u = getRandom(0, N-2);
         v = getRandom(u+1, N-1);
         ++it;
