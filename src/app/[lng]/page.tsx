@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { Link } from '@/components/link';
 import { getT } from 'next-i18next/server';
 import Navbar from "@/components/navbar";
 

@@ -1,7 +1,7 @@
 'use client'
-import Link from "next/link";
 import { useT } from 'next-i18next/client';
 import { LangDropdown } from '@/components/langDopDown';
+import { Link } from '@/components/link';
 
 export default function Navbar() {
     const { t } = useT('components/navbar', { keyPrefix: 'navbar' })
