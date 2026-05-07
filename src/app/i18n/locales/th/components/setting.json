@@ -1,0 +1,15 @@
+{
+  "physics_settings": {
+    "title": "ตั้งค่าฟิสิกส์",
+    "apply_button": "บันทึก",
+    "labels": {
+      "gravity": "แรงโน้มถ่วง",
+      "spring_length": "ความยาวสปริง",
+      "spring_coefficient": "ค่าสัมประสิทธิ์สปริง",
+      "drag_coefficient": "แรงต้านทาน"
+    },
+    "messages": {
+      "success_apply": "สำเร็จ"
+    }
+  }
+}

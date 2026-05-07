@@ -7,6 +7,7 @@ import React, {useState} from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { generateRandomGraph } from "@/lib/generateGraph";
 import { toast } from "sonner";
+import { useT } from "next-i18next/client";
 
 const toGraph = (text: string, directedGraph: boolean) => {
     const lines = text.trim().split(/\r?\n/);
@@ -52,6 +53,7 @@ export const GraphSetting = ({
     const [textGraph, setTextGraph] = useState("");
     const [randomSetting, setRandomSetting] = useState<RandomSetting>({nodeCount: null, edgeCount: null});
     const [isDirect, setDirect] = useState(false);
+    const { t } = useT('components/graphSetting', {keyPrefix: 'graph_setting'});
 
     const handleApply = (formData:FormData) => {
         const isDirect = Boolean(formData.get("directGraph")) ?? false;
@@ -64,28 +66,29 @@ export const GraphSetting = ({
         const rawEdges = String(formData.get("rawEdges"));
         const {map, nodes} = toGraph(rawEdges, isDirect);
         if(nodes.size>MAX_NODES || nodes.size<2) {
-            toast.error(`Allow number of nodes range is 2 to ${MAX_NODES}`, {
-                description: "This node doesn't exists in your graph",
+            toast.error(t('messages.error_node_range', {maxNodes: MAX_NODES}), {
+                description: t('messages.error_node_range_desc'),
             });
             return;
         }
         if(!startNode || !nodes.has(startNode)) {
-            toast.error("Invalid Start Node", {
-                description: "This node doesn't exists in your graph",
+            toast.error(t('messages.error_invalid_start'), {
+                description: t('messages.error_node_not_exists'),
             });
             return;
         }
         const edgeArr = map.values().toArray();
         if(edgeArr.length>MAX_EDGES || edgeArr.length<2) {
-            toast.error(`Allow number of nodes range is ${(randomSetting.nodeCount||1)-1} to ${MAX_EDGES}`, {
-                description: "This node doesn't exists in your graph",
+            
+            toast.error(t('messages.error_edge_range'), {
+                description: t('messages.error_edge_range_desc', {min: (randomSetting.nodeCount||1)-1, max: MAX_EDGES}),
             });
             return;
         }
         setGraphEdges(edgeArr.map((v) => make_edge(v.u, v.v, v.w)));
         map.values().toArray().map((v) => make_edge(v.u, v.v, v.w))
         setGraphSetting(newGraphSetting);
-        toast.success("Apply successfully");
+        toast.success(t('messages.success_apply'));
         onClose();
     }
 
@@ -94,14 +97,14 @@ export const GraphSetting = ({
         const {nodeCount, edgeCount} = randomSetting;
         const edgeData = generateRandomGraph(nodeCount, edgeCount, isDirect);
         if(!edgeData) {
-            toast.error(`Generate random took too long to process`, {
-                description: "Try something smaller",
+            toast.error(t('messages.error_random_timeout'), {
+                description: t('messages.error_random_subtext'),
             });
             return;
         }
         const edgeText = edgeData.map(({u, v, data: {w}}) => `${u} ${v} ${w}`).join('\n');
         setTextGraph(edgeText);
-        toast.success("Generate random edges successfully");
+        toast.success(t('messages.success_random'));
     }
 
     return (
@@ -115,52 +118,55 @@ export const GraphSetting = ({
             >
                 <Card className="w-96 flex flex-col justify-center items-center gap-y-4 p-8">
                     <CardHeader className="flex justify-between w-full">
-                        <h1>Generate Graph</h1>
+                        <h1>{t('title')}</h1>
                         <Button variant={'destructive'} size={'icon-sm'} onClick={onClose} type='button'>X</Button>
                     </CardHeader>
                     <CardSection className="w-full">
                         <div className="flex flex-wrap gap-3 justify-between">
-                            <Checkbox title={"Directed Graph"} name='directGraph'
+                            <Checkbox title={t('labels.directed_graph')} name='directGraph'
                                 checked={isDirect}
                                 onCheckedChange={(v) => setDirect(v===true)}
                             />
-                            <Checkbox title={"End Node"} checked={hasEndNode} onCheckedChange={(val) => setHasEndNode(val===true)}/>
+                            <Checkbox title={t('labels.end_node_checkbox')} checked={hasEndNode} onCheckedChange={(val) => setHasEndNode(val===true)}/>
                         </div>
                     </CardSection>
                     <CardSection className="w-full">
-                        <CardSectionHeader>Generate Random Connected Graph Input</CardSectionHeader>
+                        <CardSectionHeader>{t('labels.random_section_header')}</CardSectionHeader>
                         <div className="space-y-1 flex flex-col justify-center">
                             <div className="h-auto w-auto">
-                                <label htmlFor="nodesNum" className="text-sm">Number of nodes (2-{MAX_NODES}):</label>
+                                <label htmlFor="nodesNum" className="text-sm">{t('labels.node_count', {maxNodes: MAX_NODES})}</label>
                                 <input id="nodesNum" name='nodeCount' type="number" min={2} max={MAX_NODES} className="p-1 border rounded-sm w-full"
                                     onChange={(e) => setRandomSetting((val) => ({...val, nodeCount: Number(e.target.value)}))}
                                 />
                             </div>
                             <div className="h-auto w-auto">
-                                <label htmlFor="edgesNum" className="text-sm">Number of edges ({Math.min(MAX_EDGES, (randomSetting.nodeCount||1)-1)}-{MAX_EDGES}):</label>
+                                <label htmlFor="edgesNum" className="text-sm">{t('labels.edge_count', { 
+                                    minEdges: Math.min(MAX_EDGES, (randomSetting.nodeCount || 1) - 1), 
+                                    maxEdges: MAX_EDGES 
+                                })}</label>
                                 <input id="edgesNum" name='edgeCount' type="number" min={Math.min(MAX_EDGES, (randomSetting.nodeCount||1)-1)} max={MAX_EDGES} className="p-1 border rounded-sm w-full"
                                     onChange={(e) => setRandomSetting((val) => ({...val, edgeCount: Number(e.target.value)}))}
                                 />
                             </div>
-                            <Button type='button' onClick={handleRandomInput}>Random Input</Button>
+                            <Button type='button' onClick={handleRandomInput}>{t('labels.random_button')}</Button>
                         </div>
                     </CardSection>
                     <CardSection className="w-full">
-                        <CardSectionHeader>Input Graph</CardSectionHeader>
+                        <CardSectionHeader>{t('labels.input_section_header')}</CardSectionHeader>
                         <div className="h-auto w-auto">
-                            <label htmlFor="startNode" className="text-sm">Start Node:</label>
+                            <label htmlFor="startNode" className="text-sm">{t('labels.start_node')}</label>
                             <input placeholder={'1'} name='startNode' id="startNode" type='text' className="p-1 border rounded-sm w-full" required/>
                         </div>
                         {hasEndNode && <div className="h-auto w-auto">
-                            <label htmlFor="endNode" className="text-sm">End Node:</label>
+                            <label htmlFor="endNode" className="text-sm">{t('labels.end_node')}</label>
                             <input placeholder={'End Node (Optional)'} name='endNode' id="endNode" type='text' className="p-1 border rounded-sm w-full"/>
                         </div>}
-                        <label htmlFor="inputGraph" className="text-sm">Graph:</label>
-                        <p className="text-xs text-stone-400">Input in u v w format. u: fromNode, v: toNode w: weight</p>
+                        <label htmlFor="inputGraph" className="text-sm">{t('labels.graph_input_label')}</label>
+                        <p className="text-xs text-stone-400">{t('labels.graph_input_help')}</p>
                         <textarea id="inputGraph" value={textGraph} onChange={(e) => setTextGraph(e.currentTarget.value)} name='rawEdges' className="w-full border rounded-sm"/>
                     </CardSection>
                     <CardSection className="w-full">
-                        <Button type="submit" className="w-full">Apply</Button>
+                        <Button type="submit" className="w-full">{t('labels.apply_button')}</Button>
                     </CardSection>
                 </Card>
             </form>

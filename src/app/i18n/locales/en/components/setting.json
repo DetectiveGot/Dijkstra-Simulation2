@@ -1,0 +1,15 @@
+{
+  "physics_settings": {
+    "title": "Physics Setting",
+    "apply_button": "Apply",
+    "labels": {
+      "gravity": "Gravity",
+      "spring_length": "Spring Length",
+      "spring_coefficient": "Spring Coefficient",
+      "drag_coefficient": "Drag Coefficient"
+    },
+    "messages": {
+      "success_apply": "Apply successfully!"
+    }
+  }
+}

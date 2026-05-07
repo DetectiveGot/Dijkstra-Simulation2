@@ -1,0 +1,31 @@
+{
+  "graph_setting": {
+    "title": "สร้างกราฟ",
+    "labels": {
+      "directed_graph": "กราฟทิศทาง",
+      "end_node_checkbox": "โหนดปลายทาง",
+      "random_section_header": "สร้างกราฟเชื่อมโยงแบบสุ่ม",
+      "node_count": "จำนวนโหนด (2-{{maxNodes}}):",
+      "edge_count": "จำนวนเส้นเชื่อม ({{minEdges}}-{{maxEdges}}):",
+      "random_button": "สุ่มข้อมูล",
+      "input_section_header": "ข้อมูลกราฟ",
+      "start_node": "โหนดเริ่มต้น:",
+      "end_node": "โหนดปลายทาง:",
+      "graph_input_label": "กราฟ:",
+      "graph_input_help": "ใส่ข้อมูลในรูปแบบ u v w โดย u: จากโหนด, v: ไปโหนด w: น้ำหนัก",
+      "apply_button": "บันทึก"
+    },
+    "messages": {
+      "error_node_range": "จำนวนโหนดไม่อยู่ในช่วงที่กำหนด",
+      "error_node_range_desc": "อนุญาตให้ใช้จำนวนโหนดในช่วง 2 ถึง {{maxNodes}}",
+      "error_invalid_start": "โหนดเริ่มต้นไม่ถูกต้อง",
+      "error_node_not_exists": "ไม่พบโหนดนี้ในกราฟของคุณ",
+      "error_edge_range": "จำนวนเส้นเชื่อมไม่อยู่ในช่วงที่กำหนด",
+      "error_edge_range_desc": "อนุญาตให้ใช้จำนวนเส้นเชื่อมในช่วง {{min}} ถึง {{max}}",
+      "error_random_timeout": "การสุ่มใช้เวลานานเกินไป",
+      "error_random_subtext": "ลองใช้ค่าที่น้อยลง",
+      "success_apply": "สำเร็จ",
+      "success_random": "สร้างเส้นเชื่อมแบบสุ่มสำเร็จ"
+    }
+  }
+}

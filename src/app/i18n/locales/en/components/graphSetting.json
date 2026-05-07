@@ -1,0 +1,31 @@
+{
+  "graph_setting": {
+    "title": "Generate Graph",
+    "labels": {
+      "directed_graph": "Directed Graph",
+      "end_node_checkbox": "End Node",
+      "random_section_header": "Generate Random Connected Graph Input",
+      "node_count": "Number of nodes (2-{{maxNodes}}):",
+      "edge_count": "Number of edges ({{minEdges}}-{{maxEdges}}):",
+      "random_button": "Random Input",
+      "input_section_header": "Input Graph",
+      "start_node": "Start Node:",
+      "end_node": "End Node:",
+      "graph_input_label": "Graph:",
+      "graph_input_help": "Input in u v w format. u: fromNode, v: toNode w: weight",
+      "apply_button": "Apply"
+    },
+    "messages": {
+      "error_node_range": "Node counts out of range",
+      "error_node_range_desc": "Allow number of nodes range is 2 to {{maxNodes}}",
+      "error_invalid_start": "Invalid Start Node",
+      "error_node_not_exists": "This node doesn't exists in your graph",
+      "error_edge_range": "Edge counts out of range",
+      "error_edge_range_desc": "Allow number of nodes range is {{min}}-{{max}}",
+      "error_random_timeout": "Generate random took too long to process",
+      "error_random_subtext": "Try something smaller",
+      "success_apply": "Apply successfully",
+      "success_random": "Generate random edges successfully"
+    }
+  }
+}
